@@ -1,0 +1,29 @@
+providers:
+  - name: my-vault
+    vault:
+      address: https://myvault.com
+      token: default
+    syncInterval: 10s
+  - name: my-aws
+    awsSecretManager:
+      region: us-west-2
+secrets:
+  - name: hello1
+    provider: my-vault
+    syncInterval: 20s
+    dictionary:
+      PORT:
+        path: /v1/secret/data/app
+        parse: port
+        default: 5432
+      PASSWORD:
+        path: /v1/secret/data/app
+        parse: password
+      USERNAME:
+        default: 'no username'
+        path: /v1/secret/data/app
+        parse: username
+      SECRET: /v1/secret/data/app
+  - name: hello2
+    provider: my-aws
+    opaque: /path/to/settings.json
