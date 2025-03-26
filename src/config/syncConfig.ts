@@ -14,7 +14,7 @@ const VaultSchmea = z.object({
   token: z.string(),
 });
 
-const AwsSecretManagerSchema = z.object({
+const AwsSecretsManagerSchema = z.object({
   region: z.string(),
   endpoint: z.string().url().optional(),
   accessKeyId: z.string().optional(),
@@ -33,10 +33,10 @@ const ProviderSchema = z
     name: z.string(),
     syncInterval: DurationSchema.optional(),
     vault: VaultSchmea.optional(),
-    awsSecretManager: AwsSecretManagerSchema.optional(),
+    awsSecretsManager: AwsSecretsManagerSchema.optional(),
     awsParameterStore: AwsParameterStoreSchema.optional(),
   })
-  .refine(xor('vault', 'awsSecretManager', 'awsParameterStore'), {
+  .refine(xor('vault', 'awsSecretsManager', 'awsParameterStore'), {
     message: 'Provider must have exactly one provider',
   });
 
@@ -103,13 +103,13 @@ export const removeSensitive = (config: SyncConfigType) => {
       provider.vault.token = SENSITIVE;
     }
     if (
-      provider.awsSecretManager &&
-      provider.awsSecretManager.secretAccessKey
+      provider.awsSecretsManager &&
+      provider.awsSecretsManager.secretAccessKey
     ) {
-      provider.awsSecretManager.secretAccessKey = SENSITIVE;
+      provider.awsSecretsManager.secretAccessKey = SENSITIVE;
     }
-    if (provider.awsSecretManager && provider.awsSecretManager.accessKeyId)
-      provider.awsSecretManager.accessKeyId = SENSITIVE;
+    if (provider.awsSecretsManager && provider.awsSecretsManager.accessKeyId)
+      provider.awsSecretsManager.accessKeyId = SENSITIVE;
   });
   return result;
 };
@@ -134,5 +134,5 @@ export type SyncConfigType = z.infer<typeof ConfigSchema>;
 export type Secret = z.infer<typeof SecretSchema>;
 export type VaultConfig = z.infer<typeof VaultSchmea>;
 export type ExplicitSecret = z.infer<typeof ExplicitSecret>;
-export type AwsSecretManagerConfig = z.infer<typeof AwsSecretManagerSchema>;
+export type AwsSecretsManagerConfig = z.infer<typeof AwsSecretsManagerSchema>;
 export type AwsParameterStoreConfig = z.infer<typeof AwsParameterStoreSchema>;

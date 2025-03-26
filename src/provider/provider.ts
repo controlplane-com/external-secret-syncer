@@ -7,7 +7,7 @@ import {
 } from 'src/config/syncConfig';
 import { Provider } from './providers/provider.interface';
 import { VaultProvider } from './providers/vault';
-import { AwsSecretManagerProvider } from './providers/awsSecretManager';
+import { AwsSecretsManagerProvider } from './providers/awsSecretsManager';
 import { logger } from 'src/config/logging';
 import { AwsParameterStore } from './providers/awsParameterStore';
 
@@ -37,11 +37,11 @@ export class ProviderService implements OnModuleInit {
       if (provider.vault) {
         this.providers.push(new VaultProvider(provider.name, provider.vault));
       }
-      if (provider.awsSecretManager) {
+      if (provider.awsSecretsManager) {
         this.providers.push(
-          new AwsSecretManagerProvider(
+          new AwsSecretsManagerProvider(
             provider.name,
-            provider.awsSecretManager,
+            provider.awsSecretsManager,
           ),
         );
       }

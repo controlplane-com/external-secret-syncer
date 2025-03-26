@@ -1,5 +1,5 @@
 import { Provider } from './provider.interface';
-import { AwsSecretManagerConfig } from 'src/config/syncConfig';
+import { AwsSecretsManagerConfig } from 'src/config/syncConfig';
 import {
   GetSecretValueCommand,
   SecretsManagerClient,
@@ -8,17 +8,17 @@ import { JSON } from 'src/types/json';
 import { get } from 'lodash';
 import { logger } from 'src/config/logging';
 
-export interface AwsSecretManagerResponse {
+export interface AwsSecretsManagerResponse {
   Name: string;
   ARN: string;
   VersionId: string;
   SecretString: string;
 }
 
-export class AwsSecretManagerProvider extends Provider<AwsSecretManagerConfig> {
+export class AwsSecretsManagerProvider extends Provider<AwsSecretsManagerConfig> {
   client: SecretsManagerClient;
 
-  constructor(name: string, config: AwsSecretManagerConfig) {
+  constructor(name: string, config: AwsSecretsManagerConfig) {
     super(name, config);
     this.client = new SecretsManagerClient({
       region: config.region,

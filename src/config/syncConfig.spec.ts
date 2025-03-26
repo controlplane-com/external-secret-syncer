@@ -36,7 +36,7 @@ test('provider with multiple providers', () => {
           address: 'http://localhost:8200',
           token: 'token',
         },
-        awsSecretManager: {
+        awsSecretsManager: {
           region: 'us-west-2',
         },
       },
