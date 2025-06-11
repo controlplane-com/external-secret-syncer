@@ -88,3 +88,26 @@ test('path', () => {
     ).toBeFalsy();
   }
 });
+
+test('base64 encoding', () => {
+  const secret: z.input<typeof ExplicitSecret> = {
+    encoding: 'base64',
+    default: 'default',
+    path: '/path/to/secret',
+  };
+
+  const result = ExplicitSecret.safeParse(secret);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.encoding).toBe('base64');
+});
+
+test('no base64 encoding', () => {
+  const secret: z.input<typeof ExplicitSecret> = {
+    default: 'default',
+    path: '/path/to/secret',
+  };
+
+  const result = ExplicitSecret.safeParse(secret);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.encoding).toBeUndefined();
+});

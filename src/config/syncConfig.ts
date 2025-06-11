@@ -39,6 +39,7 @@ const ProviderSchema = z
   .refine(xor('vault', 'awsSecretsManager', 'awsParameterStore'), {
     message: 'Provider must have exactly one provider',
   });
+export const Encoding = z.enum(['base64']);
 
 export const ImplicitSecret = z.string().nonempty();
 export const ExplicitSecret = z
@@ -51,6 +52,7 @@ export const ExplicitSecret = z
         /^(?:[a-zA-Z_]\w*|\[\d+\]|\['[^']+'\]|\["[^"]+"\])(?:\.(?:[a-zA-Z_]\w*)|\[\d+\]|\['[^']+'\]|\["[^"]+"\])*$/,
       )
       .optional(),
+    encoding: Encoding.optional(),
   })
   .refine(atLeastOne('default', 'path'), {
     message: 'Secret must have a default and/or path',
@@ -132,6 +134,7 @@ export const SYNC_CONIFG_KEY = 'syncConfig';
 
 export type SyncConfigType = z.infer<typeof ConfigSchema>;
 export type Secret = z.infer<typeof SecretSchema>;
+export type Encoding = z.infer<typeof Encoding>;
 export type VaultConfig = z.infer<typeof VaultSchmea>;
 export type ExplicitSecret = z.infer<typeof ExplicitSecret>;
 export type AwsSecretsManagerConfig = z.infer<typeof AwsSecretsManagerSchema>;

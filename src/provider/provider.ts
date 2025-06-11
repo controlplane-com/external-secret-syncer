@@ -1,10 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import {
-  ExplicitSecret,
-  Secret,
-  SYNC_CONIFG_KEY,
-  SyncConfigType,
-} from 'src/config/syncConfig';
+import { Secret, SYNC_CONIFG_KEY, SyncConfigType } from 'src/config/syncConfig';
 import { Provider } from './providers/provider.interface';
 import { VaultProvider } from './providers/vault';
 import { AwsSecretsManagerProvider } from './providers/awsSecretsManager';
@@ -72,16 +67,27 @@ export class ProviderService implements OnModuleInit {
           throw e; // do not have a fall back default
         }
       } else {
-        // default/parse exists
+        // default/parse/encoding exists
         const path = secret.opaque.path;
         const parse = secret.opaque.parse;
+        const encoding = secret.opaque.encoding;
+
+        // base64 decode default value
+        let defaultValue = secret.opaque.default;
+        if (encoding === 'base64' && defaultValue) {
+          defaultValue = this.base64Decode(defaultValue);
+        }
 
         if (!path) {
-          return { secret: secret.opaque.default, defaulted: true };
+          return { secret: defaultValue, defaulted: true };
         }
 
         try {
-          const secretData = await provider.getSecret(path, parse);
+          const secretDataRaw = await provider.getSecret(path, parse);
+          let secretData = secretDataRaw;
+          if (encoding == 'base64') {
+            secretData = this.base64Decode(secretDataRaw);
+          }
           return { secret: secretData };
         } catch (e) {
           logger.error(
@@ -89,7 +95,7 @@ export class ProviderService implements OnModuleInit {
             `Error getting secret ${path} from ${provider.name}`,
           );
           return {
-            secret: secret.opaque.default,
+            secret: defaultValue,
             defaulted: true,
             error: e.message as string,
           }; // include error message with default
@@ -103,18 +109,28 @@ export class ProviderService implements OnModuleInit {
       for (const [key, obj] of Object.entries(secret.dictionary)) {
         const path = typeof obj === 'string' ? obj : obj.path;
         const parse = typeof obj === 'string' ? undefined : obj.parse;
+        const encoding = typeof obj === 'string' ? undefined : obj.encoding;
+
+        let defaultValue = typeof obj === 'string' ? undefined : obj.default;
+        if (encoding === 'base64' && defaultValue) {
+          defaultValue = this.base64Decode(defaultValue);
+        }
 
         // must have default
         if (!path) {
           data[key] = {
-            secret: (obj as ExplicitSecret).default,
+            secret: defaultValue,
             defaulted: true,
           };
           continue;
         }
 
         try {
-          const secretData = await provider.getSecret(path, parse);
+          let secretData = await provider.getSecret(path, parse);
+          if (encoding === 'base64') {
+            secretData = this.base64Decode(secretData);
+          }
+
           data[key] = { secret: secretData };
         } catch (e) {
           logger.error(
@@ -123,7 +139,7 @@ export class ProviderService implements OnModuleInit {
           );
 
           data[key] = {
-            secret: (obj as ExplicitSecret).default,
+            secret: defaultValue,
             defaulted: true,
             error: e.message as string,
           };
@@ -198,5 +214,17 @@ export class ProviderService implements OnModuleInit {
     }
 
     return provider as Provider<T>;
+  }
+
+  base64Decode(value: string): string {
+    try {
+      return Buffer.from(value, 'base64').toString('utf-8');
+    } catch (e) {
+      logger.error(
+        { err: e as Error },
+        `Error decoding base64 value: ${value}`,
+      );
+      throw new Error(`Invalid base64 value: ${value}`);
+    }
   }
 }
