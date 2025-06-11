@@ -74,15 +74,17 @@ export class ProviderService implements OnModuleInit {
 
         // base64 decode default value
         let defaultValue = secret.opaque.default;
-        if (encoding === 'base64' && defaultValue) {
-          defaultValue = this.base64Decode(defaultValue);
-        }
 
         if (!path) {
           return { secret: defaultValue, defaulted: true };
         }
 
         try {
+          // inside try catch to handle errors
+          if (encoding === 'base64' && defaultValue) {
+            defaultValue = this.base64Decode(defaultValue);
+          }
+
           const secretDataRaw = await provider.getSecret(path, parse);
           let secretData = secretDataRaw;
           if (encoding == 'base64') {
@@ -112,9 +114,6 @@ export class ProviderService implements OnModuleInit {
         const encoding = typeof obj === 'string' ? undefined : obj.encoding;
 
         let defaultValue = typeof obj === 'string' ? undefined : obj.default;
-        if (encoding === 'base64' && defaultValue) {
-          defaultValue = this.base64Decode(defaultValue);
-        }
 
         // must have default
         if (!path) {
@@ -126,6 +125,11 @@ export class ProviderService implements OnModuleInit {
         }
 
         try {
+          // inside try catch to handle errors
+          if (encoding === 'base64' && defaultValue) {
+            defaultValue = this.base64Decode(defaultValue);
+          }
+
           let secretData = await provider.getSecret(path, parse);
           if (encoding === 'base64') {
             secretData = this.base64Decode(secretData);
