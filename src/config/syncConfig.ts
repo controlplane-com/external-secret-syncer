@@ -28,17 +28,29 @@ const AwsParameterStoreSchema = z.object({
   secretAccessKey: z.string().optional(),
 });
 
-const ProviderSchema = z
+const OnePasswordSchema = z.object({
+  serviceAccountToken: z
+    .string()
+    .default(process.env.OP_SERVICE_ACCOUNT_TOKEN ?? ''),
+  integrationName: z.string().default('syncer.cpln.io'),
+  integrationVersion: z.string().default(process.env.IMAGE_VERSION ?? 'v1.0.0'),
+});
+
+export const ProviderSchema = z
   .object({
     name: z.string(),
     syncInterval: DurationSchema.optional(),
     vault: VaultSchmea.optional(),
     awsSecretsManager: AwsSecretsManagerSchema.optional(),
     awsParameterStore: AwsParameterStoreSchema.optional(),
+    onePassword: OnePasswordSchema.optional(),
   })
-  .refine(xor('vault', 'awsSecretsManager', 'awsParameterStore'), {
-    message: 'Provider must have exactly one provider',
-  });
+  .refine(
+    xor('vault', 'awsSecretsManager', 'awsParameterStore', 'onePassword'),
+    {
+      message: 'Provider must have exactly one provider',
+    },
+  );
 export const Encoding = z.enum(['base64']);
 
 export const ImplicitSecret = z.string().nonempty();
@@ -139,3 +151,4 @@ export type VaultConfig = z.infer<typeof VaultSchmea>;
 export type ExplicitSecret = z.infer<typeof ExplicitSecret>;
 export type AwsSecretsManagerConfig = z.infer<typeof AwsSecretsManagerSchema>;
 export type AwsParameterStoreConfig = z.infer<typeof AwsParameterStoreSchema>;
+export type OnePasswordConfig = z.infer<typeof OnePasswordSchema>;

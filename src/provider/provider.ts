@@ -5,6 +5,7 @@ import { VaultProvider } from './providers/vault';
 import { AwsSecretsManagerProvider } from './providers/awsSecretsManager';
 import { logger } from 'src/config/logging';
 import { AwsParameterStore } from './providers/awsParameterStore';
+import { OnePasswordProvider } from './providers/onePassword';
 
 export interface SecretResponse {
   secret?: string;
@@ -43,6 +44,11 @@ export class ProviderService implements OnModuleInit {
       if (provider.awsParameterStore) {
         this.providers.push(
           new AwsParameterStore(provider.name, provider.awsParameterStore),
+        );
+      }
+      if (provider.onePassword) {
+        this.providers.push(
+          new OnePasswordProvider(provider.name, provider.onePassword),
         );
       }
     }
