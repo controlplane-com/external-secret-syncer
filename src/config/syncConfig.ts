@@ -51,7 +51,13 @@ export const ProviderSchema = z
     doppler: DopplerSchema.optional(),
   })
   .refine(
-    xor('vault', 'awsSecretsManager', 'awsParameterStore', 'onePassword'),
+    xor(
+      'vault',
+      'awsSecretsManager',
+      'awsParameterStore',
+      'onePassword',
+      'doppler',
+    ),
     {
       message: 'Provider must have exactly one provider',
     },

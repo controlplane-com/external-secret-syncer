@@ -124,3 +124,15 @@ test('1password', () => {
   expect(result.success).toBeTruthy();
   expect(result.data?.onePassword).toBeDefined();
 });
+
+test('doppler', () => {
+  const provider: z.input<typeof ProviderSchema> = {
+    name: 'doppler',
+    doppler: {
+      accessToken: 'test-token',
+    },
+  };
+  const result = ProviderSchema.safeParse(provider);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.doppler).toBeDefined();
+});
