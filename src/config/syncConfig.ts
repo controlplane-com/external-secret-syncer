@@ -36,6 +36,10 @@ const OnePasswordSchema = z.object({
   integrationVersion: z.string().default(process.env.IMAGE_VERSION ?? 'v1.0.0'),
 });
 
+const DopplerSchema = z.object({
+  accessToken: z.string(),
+});
+
 export const ProviderSchema = z
   .object({
     name: z.string(),
@@ -44,6 +48,7 @@ export const ProviderSchema = z
     awsSecretsManager: AwsSecretsManagerSchema.optional(),
     awsParameterStore: AwsParameterStoreSchema.optional(),
     onePassword: OnePasswordSchema.optional(),
+    doppler: DopplerSchema.optional(),
   })
   .refine(
     xor('vault', 'awsSecretsManager', 'awsParameterStore', 'onePassword'),
@@ -152,3 +157,4 @@ export type ExplicitSecret = z.infer<typeof ExplicitSecret>;
 export type AwsSecretsManagerConfig = z.infer<typeof AwsSecretsManagerSchema>;
 export type AwsParameterStoreConfig = z.infer<typeof AwsParameterStoreSchema>;
 export type OnePasswordConfig = z.infer<typeof OnePasswordSchema>;
+export type DopplerConfig = z.infer<typeof DopplerSchema>;
