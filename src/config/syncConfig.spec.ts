@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ConfigSchema, ExplicitSecret } from './syncConfig';
+import { ConfigSchema, ExplicitSecret, ProviderSchema } from './syncConfig';
 
 test('secret with invalid provider', () => {
   const schema: z.input<typeof ConfigSchema> = {
@@ -110,4 +110,17 @@ test('no base64 encoding', () => {
   const result = ExplicitSecret.safeParse(secret);
   expect(result.success).toBeTruthy();
   expect(result.data?.encoding).toBeUndefined();
+});
+
+test('1password', () => {
+  const provider: z.input<typeof ProviderSchema> = {
+    name: '1password',
+    onePassword: {
+      serviceAccountToken: 'test-token',
+    },
+  };
+
+  const result = ProviderSchema.safeParse(provider);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.onePassword).toBeDefined();
 });

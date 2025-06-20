@@ -4,5 +4,5 @@ export abstract class Provider<C> {
     protected readonly config: C,
   ) {}
 
-  abstract getSecret(s: string, path?: string): Promise<string>;
+  abstract getSecret(s: string, parse?: string): Promise<string>;
 }
