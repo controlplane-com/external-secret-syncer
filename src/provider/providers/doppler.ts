@@ -33,6 +33,10 @@ export class DopplerProvider extends Provider<DopplerConfig> {
   }
 
   async getSecret(secret: string, parse?: string): Promise<string> {
+    if (secret.startsWith('/')) {
+      secret = secret.slice(1); // Remove leading slash if present
+    }
+
     const [project, config, secretName] = secret.split('/'); // Assuming secret is in the format "project/config/secretName"
 
     if (!project || !config || !secretName) {
