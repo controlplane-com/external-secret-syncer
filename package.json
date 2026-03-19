@@ -23,6 +23,7 @@
     "@1password/sdk": "^0.3.1",
     "@aws-sdk/client-secrets-manager": "^3.758.0",
     "@aws-sdk/client-ssm": "^3.759.0",
+    "@google-cloud/secret-manager": "^6.1.1",
     "@nestjs/axios": "^4.0.0",
     "@nestjs/cache-manager": "^3.0.0",
     "@nestjs/common": "^11.0.1",
