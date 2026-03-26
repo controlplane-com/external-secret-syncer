@@ -7,6 +7,7 @@ import { logger } from 'src/config/logging';
 import { AwsParameterStore } from './providers/awsParameterStore';
 import { OnePasswordProvider } from './providers/onePassword';
 import { DopplerProvider } from './providers/doppler';
+import { GcpSecretManagerProvider } from './providers/gcpSecretManager';
 
 export interface SecretResponse {
   secret?: string;
@@ -55,6 +56,14 @@ export class ProviderService implements OnModuleInit {
       if (provider.doppler) {
         this.providers.push(
           new DopplerProvider(provider.name, provider.doppler),
+        );
+      }
+      if (provider.gcpSecretManager) {
+        this.providers.push(
+          new GcpSecretManagerProvider(
+            provider.name,
+            provider.gcpSecretManager,
+          ),
         );
       }
     }

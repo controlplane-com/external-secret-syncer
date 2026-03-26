@@ -40,6 +40,16 @@ const DopplerSchema = z.object({
   accessToken: z.string(),
 });
 
+const GcpSecretManagerSchema = z.object({
+  projectId: z.coerce.string(),
+  credentials: z
+    .object({
+      clientEmail: z.string(),
+      privateKey: z.string(),
+    })
+    .optional(),
+});
+
 export const ProviderSchema = z
   .object({
     name: z.string(),
@@ -49,6 +59,7 @@ export const ProviderSchema = z
     awsParameterStore: AwsParameterStoreSchema.optional(),
     onePassword: OnePasswordSchema.optional(),
     doppler: DopplerSchema.optional(),
+    gcpSecretManager: GcpSecretManagerSchema.optional(),
   })
   .refine(
     xor(
@@ -57,6 +68,7 @@ export const ProviderSchema = z
       'awsParameterStore',
       'onePassword',
       'doppler',
+      'gcpSecretManager',
     ),
     {
       message: 'Provider must have exactly one provider',
@@ -135,6 +147,9 @@ export const removeSensitive = (config: SyncConfigType) => {
     }
     if (provider.awsSecretsManager && provider.awsSecretsManager.accessKeyId)
       provider.awsSecretsManager.accessKeyId = SENSITIVE;
+    if (provider.gcpSecretManager?.credentials) {
+      provider.gcpSecretManager.credentials.privateKey = SENSITIVE;
+    }
   });
   return result;
 };
@@ -164,3 +179,4 @@ export type AwsSecretsManagerConfig = z.infer<typeof AwsSecretsManagerSchema>;
 export type AwsParameterStoreConfig = z.infer<typeof AwsParameterStoreSchema>;
 export type OnePasswordConfig = z.infer<typeof OnePasswordSchema>;
 export type DopplerConfig = z.infer<typeof DopplerSchema>;
+export type GcpSecretManagerConfig = z.infer<typeof GcpSecretManagerSchema>;
