@@ -37,8 +37,8 @@
     "bunyan": "^1.8.15",
     "bunyan-format": "^0.2.1",
     "cache-manager": "^6.4.0",
+    "lodash": "^4.17.23",
     "js-yaml": "^4.1.1",
-    "lodash": "^4.17.21",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "zod": "^3.24.2"
