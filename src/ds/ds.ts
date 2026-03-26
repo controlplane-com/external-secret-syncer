@@ -26,19 +26,21 @@ export class DataService {
 
     // get object from cache
     if (!bypassCache) {
-      obj = await this.cacheManager.get<T>(path);
-      if (obj) return obj;
+      obj = (await this.cacheManager.get<T>(path)) ?? null;
+      if (obj !== null) return obj;
     }
 
     // get obj from data service
     const response = await firstValueFrom(
       this.dataService.get<T>(path).pipe(
         catchError((error: AxiosError) => {
-          console.log(error);
           if (error.response?.status === 404) {
             return of(null);
           }
-          Logger.error(error.message);
+          logger.error(
+            { err: error, path },
+            `Failed to fetch data from data service`,
+          );
           throw new Error('Failed to fetch data from data service');
         }),
       ),

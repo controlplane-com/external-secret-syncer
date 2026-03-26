@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { ConfigSchema, ExplicitSecret, ProviderSchema } from './syncConfig';
+import {
+  ConfigSchema,
+  ExplicitSecret,
+  ProjectDictionarySecret,
+  ProviderSchema,
+} from './syncConfig';
 
 test('secret with invalid provider', () => {
   const schema: z.input<typeof ConfigSchema> = {
@@ -135,4 +140,78 @@ test('doppler', () => {
   const result = ProviderSchema.safeParse(provider);
   expect(result.success).toBeTruthy();
   expect(result.data?.doppler).toBeDefined();
+});
+
+test('provider dictionary secret', () => {
+  const secret: z.input<typeof ProjectDictionarySecret> = {
+    path: 'my-project/dev',
+  };
+
+  const result = ProjectDictionarySecret.safeParse(secret);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.path).toBe('my-project/dev');
+});
+
+test('provider dictionary secret rejects invalid path', () => {
+  const invalidPaths = ['my-project', 'my-project/dev/extra', ' / ', '//dev'];
+
+  for (const path of invalidPaths) {
+    expect(ProjectDictionarySecret.safeParse({ path }).success).toBeFalsy();
+  }
+});
+
+test('secret with provider dictionary source', () => {
+  const schema: z.input<typeof ConfigSchema> = {
+    providers: [
+      {
+        name: 'doppler',
+        doppler: {
+          accessToken: 'test-token',
+        },
+      },
+    ],
+    secrets: [
+      {
+        name: 'doppler-project',
+        provider: 'doppler',
+        dictionaryFromProject: {
+          path: 'my-project/dev',
+        },
+      },
+    ],
+  };
+
+  const result = ConfigSchema.safeParse(schema);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.secrets[0].dictionaryFromProject?.path).toBe(
+    'my-project/dev',
+  );
+});
+
+test('provider dictionary source requires doppler', () => {
+  const schema: z.input<typeof ConfigSchema> = {
+    providers: [
+      {
+        name: 'vault',
+        vault: {
+          address: 'http://localhost:8200',
+          token: 'token',
+        },
+      },
+    ],
+    secrets: [
+      {
+        name: 'vault-project',
+        provider: 'vault',
+        dictionaryFromProject: {
+          path: 'my-project/dev',
+        },
+      },
+    ],
+  };
+
+  const result = ConfigSchema.safeParse(schema);
+  expect(result.error?.issues[0].message).toBe(
+    'Secrets using dictionaryFromProject must use a Doppler provider',
+  );
 });

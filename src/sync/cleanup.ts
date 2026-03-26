@@ -4,7 +4,12 @@ import { DataService } from 'src/ds/ds';
 import { CONFIG_KEY, ConfigType } from 'src/config/config';
 import { CplnSecret } from 'src/types/secret';
 import { Shortcuts } from 'src/config/shortcuts';
-import { Secret, SYNC_CONIFG_KEY, SyncConfigType } from 'src/config/syncConfig';
+import {
+  isDictionarySecret,
+  Secret,
+  SYNC_CONIFG_KEY,
+  SyncConfigType,
+} from 'src/config/syncConfig';
 import { logger } from 'src/config/logging';
 
 @Injectable()
@@ -78,7 +83,7 @@ export class CleanupService {
     if (configSecret.opaque && cplnSecret.type !== 'opaque') {
       return true;
     }
-    if (configSecret.dictionary && cplnSecret.type !== 'dictionary') {
+    if (isDictionarySecret(configSecret) && cplnSecret.type !== 'dictionary') {
       return true;
     }
 
