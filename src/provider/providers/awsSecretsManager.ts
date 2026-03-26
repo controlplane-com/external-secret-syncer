@@ -4,9 +4,7 @@ import {
   GetSecretValueCommand,
   SecretsManagerClient,
 } from '@aws-sdk/client-secrets-manager';
-import { JSON } from 'src/types/json';
-import { get } from 'lodash';
-import { logger } from 'src/config/logging';
+import { jsonParse } from '../util/parse';
 
 export interface AwsSecretsManagerResponse {
   Name: string;
@@ -43,26 +41,7 @@ export class AwsSecretsManagerProvider extends Provider<AwsSecretsManagerConfig>
     }
 
     if (path) {
-      try {
-        const secretObj = JSON.parse(secretString) as JSON;
-        const data = get(secretObj, path, undefined);
-
-        if (!data) {
-          throw new Error(`path ${path} did not lead to a valid value`);
-        }
-
-        if (typeof data === 'object') {
-          return JSON.stringify(data);
-        }
-
-        return String(data);
-      } catch (e) {
-        logger.error(
-          { err: e as Error },
-          `Error parsing secret ${s} from ${this.name}`,
-        );
-        throw new Error('Secret is not a valid JSON object');
-      }
+      return jsonParse(secretString, path);
     }
 
     return secretString;

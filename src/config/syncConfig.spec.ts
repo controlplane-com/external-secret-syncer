@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ConfigSchema, ExplicitSecret } from './syncConfig';
+import { ConfigSchema, ExplicitSecret, ProviderSchema } from './syncConfig';
 
 test('secret with invalid provider', () => {
   const schema: z.input<typeof ConfigSchema> = {
@@ -87,4 +87,52 @@ test('path', () => {
       ExplicitSecret.safeParse({ parse, default: 'hi' }).success,
     ).toBeFalsy();
   }
+});
+
+test('base64 encoding', () => {
+  const secret: z.input<typeof ExplicitSecret> = {
+    encoding: 'base64',
+    default: 'default',
+    path: '/path/to/secret',
+  };
+
+  const result = ExplicitSecret.safeParse(secret);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.encoding).toBe('base64');
+});
+
+test('no base64 encoding', () => {
+  const secret: z.input<typeof ExplicitSecret> = {
+    default: 'default',
+    path: '/path/to/secret',
+  };
+
+  const result = ExplicitSecret.safeParse(secret);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.encoding).toBeUndefined();
+});
+
+test('1password', () => {
+  const provider: z.input<typeof ProviderSchema> = {
+    name: '1password',
+    onePassword: {
+      serviceAccountToken: 'test-token',
+    },
+  };
+
+  const result = ProviderSchema.safeParse(provider);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.onePassword).toBeDefined();
+});
+
+test('doppler', () => {
+  const provider: z.input<typeof ProviderSchema> = {
+    name: 'doppler',
+    doppler: {
+      accessToken: 'test-token',
+    },
+  };
+  const result = ProviderSchema.safeParse(provider);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.doppler).toBeDefined();
 });

@@ -1,0 +1,9 @@
+# Ignore node_modules to reduce image size
+node_modules
+
+# Optional: other common ignores
+npm-debug.log
+.env
+.DS_Store
+.git
+.gitignore
