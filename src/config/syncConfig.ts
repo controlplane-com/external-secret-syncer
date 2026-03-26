@@ -28,17 +28,53 @@ const AwsParameterStoreSchema = z.object({
   secretAccessKey: z.string().optional(),
 });
 
-const ProviderSchema = z
+const OnePasswordSchema = z.object({
+  serviceAccountToken: z
+    .string()
+    .default(process.env.OP_SERVICE_ACCOUNT_TOKEN ?? ''),
+  integrationName: z.string().default('syncer.cpln.io'),
+  integrationVersion: z.string().default(process.env.IMAGE_VERSION ?? 'v1.0.0'),
+});
+
+const DopplerSchema = z.object({
+  accessToken: z.string(),
+});
+
+const GcpSecretManagerSchema = z.object({
+  projectId: z.coerce.string(),
+  credentials: z
+    .object({
+      clientEmail: z.string(),
+      privateKey: z.string(),
+    })
+    .optional(),
+});
+
+export const ProviderSchema = z
   .object({
     name: z.string(),
     syncInterval: DurationSchema.optional(),
     vault: VaultSchmea.optional(),
     awsSecretsManager: AwsSecretsManagerSchema.optional(),
     awsParameterStore: AwsParameterStoreSchema.optional(),
+    onePassword: OnePasswordSchema.optional(),
+    doppler: DopplerSchema.optional(),
+    gcpSecretManager: GcpSecretManagerSchema.optional(),
   })
-  .refine(xor('vault', 'awsSecretsManager', 'awsParameterStore'), {
-    message: 'Provider must have exactly one provider',
-  });
+  .refine(
+    xor(
+      'vault',
+      'awsSecretsManager',
+      'awsParameterStore',
+      'onePassword',
+      'doppler',
+      'gcpSecretManager',
+    ),
+    {
+      message: 'Provider must have exactly one provider',
+    },
+  );
+export const Encoding = z.enum(['base64']);
 
 export const ImplicitSecret = z.string().nonempty();
 export const ExplicitSecret = z
@@ -51,6 +87,7 @@ export const ExplicitSecret = z
         /^(?:[a-zA-Z_]\w*|\[\d+\]|\['[^']+'\]|\["[^"]+"\])(?:\.(?:[a-zA-Z_]\w*)|\[\d+\]|\['[^']+'\]|\["[^"]+"\])*$/,
       )
       .optional(),
+    encoding: Encoding.optional(),
   })
   .refine(atLeastOne('default', 'path'), {
     message: 'Secret must have a default and/or path',
@@ -110,6 +147,9 @@ export const removeSensitive = (config: SyncConfigType) => {
     }
     if (provider.awsSecretsManager && provider.awsSecretsManager.accessKeyId)
       provider.awsSecretsManager.accessKeyId = SENSITIVE;
+    if (provider.gcpSecretManager?.credentials) {
+      provider.gcpSecretManager.credentials.privateKey = SENSITIVE;
+    }
   });
   return result;
 };
@@ -132,7 +172,11 @@ export const SYNC_CONIFG_KEY = 'syncConfig';
 
 export type SyncConfigType = z.infer<typeof ConfigSchema>;
 export type Secret = z.infer<typeof SecretSchema>;
+export type Encoding = z.infer<typeof Encoding>;
 export type VaultConfig = z.infer<typeof VaultSchmea>;
 export type ExplicitSecret = z.infer<typeof ExplicitSecret>;
 export type AwsSecretsManagerConfig = z.infer<typeof AwsSecretsManagerSchema>;
 export type AwsParameterStoreConfig = z.infer<typeof AwsParameterStoreSchema>;
+export type OnePasswordConfig = z.infer<typeof OnePasswordSchema>;
+export type DopplerConfig = z.infer<typeof DopplerSchema>;
+export type GcpSecretManagerConfig = z.infer<typeof GcpSecretManagerSchema>;
