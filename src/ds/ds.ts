@@ -34,11 +34,13 @@ export class DataService {
     const response = await firstValueFrom(
       this.dataService.get<T>(path).pipe(
         catchError((error: AxiosError) => {
-          console.log(error);
           if (error.response?.status === 404) {
             return of(null);
           }
-          Logger.error(error.message);
+          logger.error(
+            { err: error, path },
+            `Failed to fetch data from data service`,
+          );
           throw new Error('Failed to fetch data from data service');
         }),
       ),

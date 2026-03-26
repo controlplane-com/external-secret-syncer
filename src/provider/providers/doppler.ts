@@ -20,6 +20,8 @@ export interface DopplerResponse {
   messages?: string[];
 }
 
+type DopplerDownloadResponse = Record<string, string>;
+
 export class DopplerProvider extends Provider<DopplerConfig> {
   client: AxiosInstance;
   constructor(name: string, config: DopplerConfig) {
@@ -33,17 +35,8 @@ export class DopplerProvider extends Provider<DopplerConfig> {
   }
 
   async getSecret(secret: string, parse?: string): Promise<string> {
-    if (secret.startsWith('/')) {
-      secret = secret.slice(1); // Remove leading slash if present
-    }
+    const [project, config, secretName] = this.parseSecretPath(secret);
 
-    const [project, config, secretName] = secret.split('/'); // Assuming secret is in the format "project/config/secretName"
-
-    if (!project || !config || !secretName) {
-      throw new Error(
-        `Invalid secret format. Expected "project/config/secretName", got "${secret}"`,
-      );
-    }
     try {
       const resp = (
         await this.client.get<DopplerResponse>('/configs/config/secret', {
@@ -54,6 +47,16 @@ export class DopplerProvider extends Provider<DopplerConfig> {
           },
         })
       ).data;
+
+      if (
+        !resp?.value ||
+        typeof resp.value.computed !== 'string' ||
+        !resp.value.computedValueType?.type
+      ) {
+        throw new Error(
+          `Doppler API returned an invalid response for secret ${secretName}`,
+        );
+      }
 
       const secretValue = resp.value.computed;
 
@@ -81,5 +84,85 @@ export class DopplerProvider extends Provider<DopplerConfig> {
         throw error;
       }
     }
+  }
+
+  async getSecrets(path: string): Promise<Record<string, string>> {
+    const [project, config] = this.parseProjectPath(path);
+
+    try {
+      const resp = (
+        await this.client.get<DopplerDownloadResponse>(
+          '/configs/config/secrets/download',
+          {
+            params: {
+              project,
+              config,
+              format: 'json',
+            },
+          },
+        )
+      ).data;
+
+      if (!resp || typeof resp !== 'object' || Array.isArray(resp)) {
+        throw new Error('Doppler API returned no secrets');
+      }
+
+      return Object.fromEntries(
+        Object.entries(resp).map(([name, value]) => {
+          if (typeof value !== 'string') {
+            throw new Error(
+              `Doppler API returned an invalid value for secret ${name}`,
+            );
+          }
+
+          return [name, value];
+        }),
+      );
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const message =
+          (error.response?.data?.messages?.join(', ') as string) ||
+          error.message;
+        throw new Error(`Doppler API error: ${message}`);
+      }
+
+      throw error;
+    }
+  }
+
+  private parseSecretPath(secret: string): [string, string, string] {
+    const normalizedSecret = this.normalizePath(secret);
+    const parts = normalizedSecret.split('/');
+
+    if (parts.length !== 3) {
+      throw new Error(
+        `Invalid secret format. Expected "project/config/secretName", got "${secret}"`,
+      );
+    }
+
+    return parts as [string, string, string];
+  }
+
+  private parseProjectPath(path: string): [string, string] {
+    const normalizedPath = this.normalizePath(path);
+    const parts = normalizedPath.split('/');
+
+    if (parts.length !== 2) {
+      throw new Error(
+        `Invalid Doppler config format. Expected "project/config", got "${path}"`,
+      );
+    }
+
+    return parts as [string, string];
+  }
+
+  private normalizePath(path: string): string {
+    const normalizedPath = path.trim().replace(/^\/+|\/+$/g, '');
+
+    if (!normalizedPath || normalizedPath.includes('//')) {
+      throw new Error(`Invalid Doppler path: "${path}"`);
+    }
+
+    return normalizedPath;
   }
 }

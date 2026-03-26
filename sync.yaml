@@ -7,6 +7,9 @@ providers:
   - name: my-aws
     awsSecretsManager:
       region: us-west-2
+  - name: my-doppler
+    doppler:
+      accessToken: dp.st.example
 secrets:
   - name: hello1
     provider: my-vault
@@ -27,3 +30,8 @@ secrets:
   - name: hello2
     provider: my-aws
     opaque: /path/to/settings.json
+  - name: doppler-app-config
+    provider: my-doppler
+    syncInterval: 30s
+    dictionaryFromProject:
+      path: my-project/dev

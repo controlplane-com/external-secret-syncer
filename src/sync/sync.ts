@@ -1,6 +1,11 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { DataService } from '../ds/ds';
-import { Secret, SYNC_CONIFG_KEY, SyncConfigType } from '../config/syncConfig';
+import {
+  isDictionarySecret,
+  Secret,
+  SYNC_CONIFG_KEY,
+  SyncConfigType,
+} from '../config/syncConfig';
 import { CONFIG_KEY, ConfigType } from '../config/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import {
@@ -141,7 +146,7 @@ export class Sync implements OnModuleInit {
     }
 
     // populating for dictionary secret
-    if (configSecret.dictionary) {
+    if (isDictionarySecret(configSecret)) {
       data = {};
       for (const [key, obj] of Object.entries(
         providerSecret as DictionarySecretResponse,

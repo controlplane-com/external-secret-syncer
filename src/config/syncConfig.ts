@@ -92,6 +92,15 @@ export const ExplicitSecret = z
   .refine(atLeastOne('default', 'path'), {
     message: 'Secret must have a default and/or path',
   });
+export const ProjectDictionarySecret = z.object({
+  path: z
+    .string()
+    .trim()
+    .regex(/^\/?[^/\s]+\/[^/\s]+$/, {
+      message:
+        'Project dictionary path must be in the format "project/config"',
+    }),
+});
 
 const SecretSchema = z
   .object({
@@ -102,8 +111,9 @@ const SecretSchema = z
     dictionary: z
       .record(z.string().nonempty(), z.union([ImplicitSecret, ExplicitSecret]))
       .optional(),
+    dictionaryFromProject: ProjectDictionarySecret.optional(),
   })
-  .refine(xor('opaque', 'dictionary'), {
+  .refine(xor('opaque', 'dictionary', 'dictionaryFromProject'), {
     message: 'Secrets must only reference one secret type',
   });
 
@@ -131,6 +141,26 @@ export const ConfigSchema = z
       return true;
     },
     { message: 'Secrets must have a valid provider' },
+  )
+  .refine(
+    (config) => {
+      for (const secret of config.secrets) {
+        if (!secret.dictionaryFromProject) {
+          continue;
+        }
+
+        const provider = config.providers.find((p) => p.name === secret.provider);
+        if (!provider?.doppler) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+    {
+      message:
+        'Secrets using dictionaryFromProject must use a Doppler provider',
+    },
   );
 
 export const removeSensitive = (config: SyncConfigType) => {
@@ -147,6 +177,9 @@ export const removeSensitive = (config: SyncConfigType) => {
     }
     if (provider.awsSecretsManager && provider.awsSecretsManager.accessKeyId)
       provider.awsSecretsManager.accessKeyId = SENSITIVE;
+    if (provider.doppler) {
+      provider.doppler.accessToken = SENSITIVE;
+    }
     if (provider.gcpSecretManager?.credentials) {
       provider.gcpSecretManager.credentials.privateKey = SENSITIVE;
     }
@@ -170,11 +203,15 @@ export const syncConfig = async () => {
 
 export const SYNC_CONIFG_KEY = 'syncConfig';
 
+export const isDictionarySecret = (secret: Secret) =>
+  Boolean(secret.dictionary || secret.dictionaryFromProject);
+
 export type SyncConfigType = z.infer<typeof ConfigSchema>;
 export type Secret = z.infer<typeof SecretSchema>;
 export type Encoding = z.infer<typeof Encoding>;
 export type VaultConfig = z.infer<typeof VaultSchmea>;
 export type ExplicitSecret = z.infer<typeof ExplicitSecret>;
+export type ProjectDictionarySecret = z.infer<typeof ProjectDictionarySecret>;
 export type AwsSecretsManagerConfig = z.infer<typeof AwsSecretsManagerSchema>;
 export type AwsParameterStoreConfig = z.infer<typeof AwsParameterStoreSchema>;
 export type OnePasswordConfig = z.infer<typeof OnePasswordSchema>;

@@ -1,5 +1,9 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { Secret, SYNC_CONIFG_KEY, SyncConfigType } from 'src/config/syncConfig';
+import {
+  Secret,
+  SYNC_CONIFG_KEY,
+  SyncConfigType,
+} from 'src/config/syncConfig';
 import { Provider } from './providers/provider.interface';
 import { VaultProvider } from './providers/vault';
 import { AwsSecretsManagerProvider } from './providers/awsSecretsManager';
@@ -174,6 +178,13 @@ export class ProviderService implements OnModuleInit {
       return data;
     }
 
+    if (secret.dictionaryFromProject) {
+      const data = await provider.getSecrets(secret.dictionaryFromProject.path);
+      return Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [key, { secret: value }]),
+      );
+    }
+
     // unexpected path
     throw new Error(`Unexpected error for: ${secret.name}`);
   }
@@ -188,7 +199,7 @@ export class ProviderService implements OnModuleInit {
           name: secret.name,
           opaque: 'ERROR: ' + e.message,
         };
-      } else {
+      } else if (secret.dictionary) {
         return {
           name: secret.name,
           dictionary: Object.fromEntries(
@@ -199,6 +210,13 @@ export class ProviderService implements OnModuleInit {
           ),
         };
       }
+
+      return {
+        name: secret.name,
+        dictionary: {
+          _provider: 'ERROR: ' + e.message,
+        },
+      };
     }
 
     if (secret.opaque) {
@@ -229,21 +247,54 @@ export class ProviderService implements OnModuleInit {
       };
     }
 
+    if (secret.dictionaryFromProject) {
+      const res = Object.fromEntries(
+        Object.keys(resolved as DictionarySecretResponse).map((key) => {
+          const resolvedPair = (resolved as DictionarySecretResponse)[
+            key
+          ] as SecretResponse;
+          return [
+            key,
+            resolvedPair.error
+              ? `ERROR: ${resolvedPair.error}`
+              : resolvedPair.defaulted
+                ? 'DEFAULT'
+                : 'OK',
+          ];
+        }),
+      );
+
+      return {
+        name: secret.name,
+        dictionary: res,
+      };
+    }
+
     throw new Error('Unexpected error for: ${secret.name}');
   }
 
   getProviderForSecret<T>(secret: Secret): Provider<T> {
     const provider = this.providers.find((p) => p.name === secret.provider);
     if (!provider) {
-      throw new Error(`Provider ${provider} not found`);
+      throw new Error(`Provider ${secret.provider} not found`);
     }
 
     return provider as Provider<T>;
   }
 
   base64Decode(value: string): string {
+    const normalizedValue = value.trim();
+
+    if (
+      normalizedValue.length === 0 ||
+      normalizedValue.length % 4 !== 0 ||
+      !/^[A-Za-z0-9+/]*={0,2}$/.test(normalizedValue)
+    ) {
+      throw new Error(`Invalid base64 value: ${value}`);
+    }
+
     try {
-      return Buffer.from(value, 'base64').toString('utf-8');
+      return Buffer.from(normalizedValue, 'base64').toString('utf-8');
     } catch (e) {
       logger.error(
         { err: e as Error },
