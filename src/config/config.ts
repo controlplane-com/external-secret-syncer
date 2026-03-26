@@ -9,7 +9,7 @@ const ConfigSchema = z
     CPLN_CACHE_SECONDS: z.coerce.number().int().positive().default(300),
     CPLN_ENDPOINT: z.string().default('https://api.cpln.io'),
     CPLN_TOKEN: z.string(),
-    DEFAULT_SYNC_INTERVAL: DurationSchema.default('300s'),
+    DEFAULT_SYNC_INTERVAL: z.coerce.string().default('300s').pipe(DurationSchema),
     PORT: z.coerce.number().int().positive().min(1).max(65535).default(3004),
   })
   .strip()

@@ -6,7 +6,11 @@ export abstract class Provider<C> {
 
   abstract getSecret(s: string, parse?: string): Promise<string>;
 
-  async getSecrets(_path: string): Promise<Record<string, string>> {
-    throw new Error(`Provider ${this.name} does not support bulk secret sync`);
+  getSecrets(path: string): Promise<Record<string, string>> {
+    return Promise.reject(
+      new Error(
+        `Provider ${this.name} does not support bulk secret sync for path ${path}`,
+      ),
+    );
   }
 }

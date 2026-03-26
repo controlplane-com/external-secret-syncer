@@ -203,7 +203,7 @@ export class ProviderService implements OnModuleInit {
         return {
           name: secret.name,
           dictionary: Object.fromEntries(
-            Object.keys(secret.dictionary!).map((key) => [
+            Object.keys(secret.dictionary).map((key) => [
               key,
               'ERROR: ' + e.message,
             ]),
@@ -252,7 +252,7 @@ export class ProviderService implements OnModuleInit {
         Object.keys(resolved as DictionarySecretResponse).map((key) => {
           const resolvedPair = (resolved as DictionarySecretResponse)[
             key
-          ] as SecretResponse;
+          ];
           return [
             key,
             resolvedPair.error

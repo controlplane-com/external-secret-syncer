@@ -26,8 +26,8 @@ export class DataService {
 
     // get object from cache
     if (!bypassCache) {
-      obj = await this.cacheManager.get<T>(path);
-      if (obj) return obj;
+      obj = (await this.cacheManager.get<T>(path)) ?? null;
+      if (obj !== null) return obj;
     }
 
     // get obj from data service
