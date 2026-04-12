@@ -33,7 +33,7 @@
     "@nestjs/platform-express": "^11.1.17",
     "@nestjs/schedule": "^6.1.1",
     "@types/lodash": "^4.17.24",
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "bunyan": "^1.8.15",
     "bunyan-format": "^0.2.1",
     "cache-manager": "^7.2.8",
