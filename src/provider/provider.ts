@@ -10,6 +10,7 @@ import { AwsSecretsManagerProvider } from './providers/awsSecretsManager';
 import { logger } from 'src/config/logging';
 import { AwsParameterStore } from './providers/awsParameterStore';
 import { OnePasswordProvider } from './providers/onePassword';
+import { OnePasswordConnectProvider } from './providers/onePasswordConnect';
 import { DopplerProvider } from './providers/doppler';
 import { GcpSecretManagerProvider } from './providers/gcpSecretManager';
 
@@ -55,6 +56,14 @@ export class ProviderService implements OnModuleInit {
       if (provider.onePassword) {
         this.providers.push(
           new OnePasswordProvider(provider.name, provider.onePassword),
+        );
+      }
+      if (provider.onePasswordConnect) {
+        this.providers.push(
+          new OnePasswordConnectProvider(
+            provider.name,
+            provider.onePasswordConnect,
+          ),
         );
       }
       if (provider.doppler) {
