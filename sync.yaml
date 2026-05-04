@@ -10,6 +10,10 @@ providers:
   - name: my-doppler
     doppler:
       accessToken: dp.st.example
+  - name: my-1p-connect
+    onePasswordConnect:
+      serverURL: http://localhost:8080
+      token: mock-token
 secrets:
   - name: hello1
     provider: my-vault
@@ -35,3 +39,6 @@ secrets:
     syncInterval: 30s
     dictionaryFromProject:
       path: my-project/dev
+  - name: test-secret
+    provider: my-1p-connect
+    opaque: ESS Test/My App/password
