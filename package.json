@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@1password/connect": "^1.4.2",
     "@1password/sdk": "^0.4.0",
     "@aws-sdk/client-secrets-manager": "^3.1018.0",
     "@aws-sdk/client-ssm": "^3.1018.0",

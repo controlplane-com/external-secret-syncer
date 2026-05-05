@@ -36,6 +36,11 @@ const OnePasswordSchema = z.object({
   integrationVersion: z.string().default(process.env.IMAGE_VERSION ?? 'v1.0.0'),
 });
 
+const OnePasswordConnectSchema = z.object({
+  serverURL: z.string().url(),
+  token: z.string(),
+});
+
 const DopplerSchema = z.object({
   accessToken: z.string(),
 });
@@ -58,6 +63,7 @@ export const ProviderSchema = z
     awsSecretsManager: AwsSecretsManagerSchema.optional(),
     awsParameterStore: AwsParameterStoreSchema.optional(),
     onePassword: OnePasswordSchema.optional(),
+    onePasswordConnect: OnePasswordConnectSchema.optional(),
     doppler: DopplerSchema.optional(),
     gcpSecretManager: GcpSecretManagerSchema.optional(),
   })
@@ -67,6 +73,7 @@ export const ProviderSchema = z
       'awsSecretsManager',
       'awsParameterStore',
       'onePassword',
+      'onePasswordConnect',
       'doppler',
       'gcpSecretManager',
     ),
@@ -177,6 +184,9 @@ export const removeSensitive = (config: SyncConfigType) => {
     }
     if (provider.awsSecretsManager && provider.awsSecretsManager.accessKeyId)
       provider.awsSecretsManager.accessKeyId = SENSITIVE;
+    if (provider.onePasswordConnect) {
+      provider.onePasswordConnect.token = SENSITIVE;
+    }
     if (provider.doppler) {
       provider.doppler.accessToken = SENSITIVE;
     }
@@ -215,5 +225,6 @@ export type ProjectDictionarySecret = z.infer<typeof ProjectDictionarySecret>;
 export type AwsSecretsManagerConfig = z.infer<typeof AwsSecretsManagerSchema>;
 export type AwsParameterStoreConfig = z.infer<typeof AwsParameterStoreSchema>;
 export type OnePasswordConfig = z.infer<typeof OnePasswordSchema>;
+export type OnePasswordConnectConfig = z.infer<typeof OnePasswordConnectSchema>;
 export type DopplerConfig = z.infer<typeof DopplerSchema>;
 export type GcpSecretManagerConfig = z.infer<typeof GcpSecretManagerSchema>;
