@@ -61,7 +61,7 @@ export class CleanupService {
 
   private async getCplnSecretsForThisEss() {
     return await this.ds.query<CplnSecret>(
-      `/org/${this.config.CPLN_ORG}/secret`,
+      `/org/${this.config.CPLN_ORG}/secret/-query`,
       {
         spec: {
           match: 'all',
