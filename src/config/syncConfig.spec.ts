@@ -183,12 +183,11 @@ test('secret with provider dictionary source', () => {
 
   const result = ConfigSchema.safeParse(schema);
   expect(result.success).toBeTruthy();
-  expect(result.data?.secrets[0].dictionaryFromProject?.path).toBe(
-    'my-project/dev',
-  );
+  const dfp = result.data?.secrets[0].dictionaryFromProject;
+  expect(typeof dfp === 'object' && dfp.path).toBe('my-project/dev');
 });
 
-test('provider dictionary source requires doppler', () => {
+test('provider dictionary source rejects unsupported provider', () => {
   const schema: z.input<typeof ConfigSchema> = {
     providers: [
       {
@@ -212,6 +211,78 @@ test('provider dictionary source requires doppler', () => {
 
   const result = ConfigSchema.safeParse(schema);
   expect(result.error?.issues[0].message).toBe(
-    'Secrets using dictionaryFromProject must use a Doppler provider',
+    'dictionaryFromProject must use `true` with a gcpSecretManager provider, or a path object with a Doppler provider',
   );
+});
+
+test('secret with gcp dictionaryFromProject', () => {
+  const schema: z.input<typeof ConfigSchema> = {
+    providers: [
+      {
+        name: 'gcp',
+        gcpSecretManager: {
+          projectId: 'my-gcp-project',
+        },
+      },
+    ],
+    secrets: [
+      {
+        name: 'gcp-project',
+        provider: 'gcp',
+        dictionaryFromProject: true,
+      },
+    ],
+  };
+
+  const result = ConfigSchema.safeParse(schema);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.secrets[0].dictionaryFromProject).toBe(true);
+});
+
+test('gcp dictionaryFromProject rejects path object', () => {
+  const schema: z.input<typeof ConfigSchema> = {
+    providers: [
+      {
+        name: 'gcp',
+        gcpSecretManager: {
+          projectId: 'my-gcp-project',
+        },
+      },
+    ],
+    secrets: [
+      {
+        name: 'gcp-project',
+        provider: 'gcp',
+        dictionaryFromProject: {
+          path: 'my-project/dev',
+        },
+      },
+    ],
+  };
+
+  const result = ConfigSchema.safeParse(schema);
+  expect(result.success).toBeFalsy();
+});
+
+test('doppler dictionaryFromProject rejects boolean', () => {
+  const schema: z.input<typeof ConfigSchema> = {
+    providers: [
+      {
+        name: 'doppler',
+        doppler: {
+          accessToken: 'test-token',
+        },
+      },
+    ],
+    secrets: [
+      {
+        name: 'doppler-project',
+        provider: 'doppler',
+        dictionaryFromProject: true,
+      },
+    ],
+  };
+
+  const result = ConfigSchema.safeParse(schema);
+  expect(result.success).toBeFalsy();
 });

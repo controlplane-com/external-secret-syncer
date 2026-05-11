@@ -188,7 +188,11 @@ export class ProviderService implements OnModuleInit {
     }
 
     if (secret.dictionaryFromProject) {
-      const data = await provider.getSecrets(secret.dictionaryFromProject.path);
+      const path =
+        secret.dictionaryFromProject === true
+          ? undefined
+          : secret.dictionaryFromProject.path;
+      const data = await provider.getSecrets(path);
       return Object.fromEntries(
         Object.entries(data).map(([key, value]) => [key, { secret: value }]),
       );

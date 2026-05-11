@@ -118,7 +118,9 @@ const SecretSchema = z
     dictionary: z
       .record(z.string().nonempty(), z.union([ImplicitSecret, ExplicitSecret]))
       .optional(),
-    dictionaryFromProject: ProjectDictionarySecret.optional(),
+    dictionaryFromProject: z
+      .union([ProjectDictionarySecret, z.literal(true)])
+      .optional(),
   })
   .refine(xor('opaque', 'dictionary', 'dictionaryFromProject'), {
     message: 'Secrets must only reference one secret type',
@@ -156,9 +158,21 @@ export const ConfigSchema = z
           continue;
         }
 
-        const provider = config.providers.find((p) => p.name === secret.provider);
-        if (!provider?.doppler) {
-          return false;
+        const provider = config.providers.find(
+          (p) => p.name === secret.provider,
+        );
+        if (!provider) {
+          continue;
+        }
+
+        if (secret.dictionaryFromProject === true) {
+          if (!provider.gcpSecretManager) {
+            return false;
+          }
+        } else {
+          if (!provider.doppler) {
+            return false;
+          }
         }
       }
 
@@ -166,7 +180,7 @@ export const ConfigSchema = z
     },
     {
       message:
-        'Secrets using dictionaryFromProject must use a Doppler provider',
+        'dictionaryFromProject must use `true` with a gcpSecretManager provider, or a path object with a Doppler provider',
     },
   );
 
