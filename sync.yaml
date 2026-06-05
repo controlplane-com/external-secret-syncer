@@ -14,6 +14,11 @@ providers:
     onePasswordConnect:
       serverURL: http://localhost:8080
       token: mock-token
+  - name: my-infisical
+    infisical:
+      clientId: example-client-id
+      clientSecret: example-client-secret
+      projectId: example-project-id
 secrets:
   - name: hello1
     provider: my-vault
@@ -42,3 +47,10 @@ secrets:
   - name: test-secret
     provider: my-1p-connect
     opaque: ESS Test/My App/password
+  - name: infisical-secret
+    provider: my-infisical
+    opaque: dev/DATABASE_URL
+  - name: infisical-app-config
+    provider: my-infisical
+    dictionaryFromProject:
+      path: dev

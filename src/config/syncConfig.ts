@@ -45,6 +45,13 @@ const DopplerSchema = z.object({
   accessToken: z.string(),
 });
 
+const InfisicalSchema = z.object({
+  siteUrl: z.url().optional(),
+  clientId: z.string().default(process.env.INFISICAL_CLIENT_ID ?? ''),
+  clientSecret: z.string().default(process.env.INFISICAL_CLIENT_SECRET ?? ''),
+  projectId: z.string(),
+});
+
 const GcpSecretManagerSchema = z.object({
   projectId: z.coerce.string(),
   credentials: z
@@ -66,6 +73,7 @@ export const ProviderSchema = z
     onePasswordConnect: OnePasswordConnectSchema.optional(),
     doppler: DopplerSchema.optional(),
     gcpSecretManager: GcpSecretManagerSchema.optional(),
+    infisical: InfisicalSchema.optional(),
   })
   .refine(
     xor(
@@ -76,6 +84,7 @@ export const ProviderSchema = z
       'onePasswordConnect',
       'doppler',
       'gcpSecretManager',
+      'infisical',
     ),
     {
       message: 'Provider must have exactly one provider',
@@ -103,9 +112,9 @@ export const ProjectDictionarySecret = z.object({
   path: z
     .string()
     .trim()
-    .regex(/^\/?[^/\s]+\/[^/\s]+$/, {
+    .regex(/^\/?[^/\s]+(?:\/[^/\s]+)*$/, {
       message:
-        'Project dictionary path must be in the format "project/config"',
+        'dictionaryFromProject path must be one or more "/"-separated segments (e.g. "project/config" for Doppler, "environment" or "environment/folder" for Infisical)',
     }),
 });
 
@@ -170,7 +179,7 @@ export const ConfigSchema = z
             return false;
           }
         } else {
-          if (!provider.doppler) {
+          if (!provider.doppler && !provider.infisical) {
             return false;
           }
         }
@@ -180,7 +189,7 @@ export const ConfigSchema = z
     },
     {
       message:
-        'dictionaryFromProject must use `true` with a gcpSecretManager provider, or a path object with a Doppler provider',
+        'dictionaryFromProject must use `true` with a gcpSecretManager provider, or a path object with a Doppler or Infisical provider',
     },
   );
 
@@ -206,6 +215,9 @@ export const removeSensitive = (config: SyncConfigType) => {
     }
     if (provider.gcpSecretManager?.credentials) {
       provider.gcpSecretManager.credentials.privateKey = SENSITIVE;
+    }
+    if (provider.infisical) {
+      provider.infisical.clientSecret = SENSITIVE;
     }
   });
   return result;
@@ -242,3 +254,4 @@ export type OnePasswordConfig = z.infer<typeof OnePasswordSchema>;
 export type OnePasswordConnectConfig = z.infer<typeof OnePasswordConnectSchema>;
 export type DopplerConfig = z.infer<typeof DopplerSchema>;
 export type GcpSecretManagerConfig = z.infer<typeof GcpSecretManagerSchema>;
+export type InfisicalConfig = z.infer<typeof InfisicalSchema>;

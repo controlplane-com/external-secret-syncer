@@ -13,6 +13,7 @@ import { OnePasswordProvider } from './providers/onePassword';
 import { OnePasswordConnectProvider } from './providers/onePasswordConnect';
 import { DopplerProvider } from './providers/doppler';
 import { GcpSecretManagerProvider } from './providers/gcpSecretManager';
+import { InfisicalProvider } from './providers/infisical';
 
 export interface SecretResponse {
   secret?: string;
@@ -77,6 +78,11 @@ export class ProviderService implements OnModuleInit {
             provider.name,
             provider.gcpSecretManager,
           ),
+        );
+      }
+      if (provider.infisical) {
+        this.providers.push(
+          new InfisicalProvider(provider.name, provider.infisical),
         );
       }
     }
