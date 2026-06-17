@@ -14,6 +14,7 @@ import { OnePasswordConnectProvider } from './providers/onePasswordConnect';
 import { DopplerProvider } from './providers/doppler';
 import { GcpSecretManagerProvider } from './providers/gcpSecretManager';
 import { InfisicalProvider } from './providers/infisical';
+import { flattenJson, tryParseJsonObject } from './util/flatten';
 
 export interface SecretResponse {
   secret?: string;
@@ -34,7 +35,7 @@ export class ProviderService implements OnModuleInit {
 
   constructor(
     @Inject(SYNC_CONIFG_KEY) private readonly syncConfig: SyncConfigType,
-  ) {}
+  ) { }
 
   onModuleInit() {
     for (const provider of this.syncConfig.providers) {
@@ -204,6 +205,28 @@ export class ProviderService implements OnModuleInit {
       );
     }
 
+    if (secret.dictionaryFromJson) {
+      const path = secret.dictionaryFromJson;
+      const rawValue = await provider.getSecret(path);
+      const parsed = tryParseJsonObject(rawValue);
+
+      if (parsed === null) {
+        // Value is not a parseable JSON object (raw string, array, scalar, or
+        // malformed JSON). Fall back to a single-key dictionary containing the
+        // raw value, so the secret stays usable as a dictionary type — no
+        // delete/recreate cycle on each parse outcome.
+        logger.warn(
+          `Secret ${path} from ${provider.name} is not a valid JSON object; storing raw value under '__raw' key`,
+        );
+        return { __raw: { secret: rawValue } };
+      }
+
+      const flat = flattenJson(parsed);
+      return Object.fromEntries(
+        Object.entries(flat).map(([k, v]) => [k, { secret: v }]),
+      );
+    }
+
     // unexpected path
     throw new Error(`Unexpected error for: ${secret.name}`);
   }
@@ -227,6 +250,13 @@ export class ProviderService implements OnModuleInit {
               'ERROR: ' + e.message,
             ]),
           ),
+        };
+      } else if (secret.dictionaryFromJson) {
+        return {
+          name: secret.name,
+          dictionary: {
+            [secret.dictionaryFromJson]: 'ERROR: ' + e.message,
+          },
         };
       }
 
@@ -266,7 +296,7 @@ export class ProviderService implements OnModuleInit {
       };
     }
 
-    if (secret.dictionaryFromProject) {
+    if (secret.dictionaryFromProject || secret.dictionaryFromJson) {
       const res = Object.fromEntries(
         Object.keys(resolved as DictionarySecretResponse).map((key) => {
           const resolvedPair = (resolved as DictionarySecretResponse)[

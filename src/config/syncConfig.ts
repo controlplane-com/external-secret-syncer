@@ -130,10 +130,14 @@ const SecretSchema = z
     dictionaryFromProject: z
       .union([ProjectDictionarySecret, z.literal(true)])
       .optional(),
+    dictionaryFromJson: z.string().nonempty().optional(),
   })
-  .refine(xor('opaque', 'dictionary', 'dictionaryFromProject'), {
-    message: 'Secrets must only reference one secret type',
-  });
+  .refine(
+    xor('opaque', 'dictionary', 'dictionaryFromProject', 'dictionaryFromJson'),
+    {
+      message: 'Secrets must only reference one secret type',
+    },
+  );
 
 export const ConfigSchema = z
   .object({
@@ -240,7 +244,11 @@ export const syncConfig = async () => {
 export const SYNC_CONIFG_KEY = 'syncConfig';
 
 export const isDictionarySecret = (secret: Secret) =>
-  Boolean(secret.dictionary || secret.dictionaryFromProject);
+  Boolean(
+    secret.dictionary ||
+    secret.dictionaryFromProject ||
+    secret.dictionaryFromJson,
+  );
 
 export type SyncConfigType = z.infer<typeof ConfigSchema>;
 export type Secret = z.infer<typeof SecretSchema>;
