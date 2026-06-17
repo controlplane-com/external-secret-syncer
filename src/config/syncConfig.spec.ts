@@ -264,6 +264,52 @@ test('gcp dictionaryFromProject rejects path object', () => {
   expect(result.success).toBeFalsy();
 });
 
+test('secret with dictionaryFromJson', () => {
+  const schema: z.input<typeof ConfigSchema> = {
+    providers: [
+      {
+        name: 'gcp',
+        gcpSecretManager: {
+          projectId: 'my-gcp-project',
+        },
+      },
+    ],
+    secrets: [
+      {
+        name: 'app-config',
+        provider: 'gcp',
+        dictionaryFromJson: 'app-config-secret',
+      },
+    ],
+  };
+
+  const result = ConfigSchema.safeParse(schema);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.secrets[0].dictionaryFromJson).toBe('app-config-secret');
+});
+
+test('secret rejects multiple sync types', () => {
+  const schema: z.input<typeof ConfigSchema> = {
+    providers: [
+      {
+        name: 'gcp',
+        gcpSecretManager: { projectId: 'my-gcp-project' },
+      },
+    ],
+    secrets: [
+      {
+        name: 'app-config',
+        provider: 'gcp',
+        opaque: 'foo',
+        dictionaryFromJson: 'app-config-secret',
+      },
+    ],
+  };
+
+  const result = ConfigSchema.safeParse(schema);
+  expect(result.success).toBeFalsy();
+});
+
 test('doppler dictionaryFromProject rejects boolean', () => {
   const schema: z.input<typeof ConfigSchema> = {
     providers: [
