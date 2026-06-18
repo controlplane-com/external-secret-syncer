@@ -1,5 +1,5 @@
 import { InfisicalConfig } from 'src/config/syncConfig';
-import { Provider } from './provider.interface';
+import { Provider, ProviderSecretValue } from './provider.interface';
 import { InfisicalSDK } from '@infisical/sdk';
 import { jsonParse, yamlParse } from '../util/parse';
 
@@ -46,7 +46,7 @@ export class InfisicalProvider extends Provider<InfisicalConfig> {
     }
   }
 
-  async getSecrets(path: string): Promise<Record<string, string>> {
+  async getSecrets(path: string): Promise<Record<string, ProviderSecretValue>> {
     const { environment, secretPath } = this.parseProjectPath(path);
     await this.authenticate();
 
@@ -70,7 +70,7 @@ export class InfisicalProvider extends Provider<InfisicalConfig> {
             );
           }
 
-          return [s.secretKey, s.secretValue];
+          return [s.secretKey, { value: s.secretValue }];
         }),
       );
     } catch (error) {

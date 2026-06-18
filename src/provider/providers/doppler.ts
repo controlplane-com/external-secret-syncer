@@ -1,5 +1,5 @@
 import { DopplerConfig } from 'src/config/syncConfig';
-import { Provider } from './provider.interface';
+import { Provider, ProviderSecretValue } from './provider.interface';
 import axios, { AxiosInstance } from 'axios';
 import { jsonParse, yamlParse } from '../util/parse';
 
@@ -86,7 +86,7 @@ export class DopplerProvider extends Provider<DopplerConfig> {
     }
   }
 
-  async getSecrets(path: string): Promise<Record<string, string>> {
+  async getSecrets(path: string): Promise<Record<string, ProviderSecretValue>> {
     const [project, config] = this.parseProjectPath(path);
 
     try {
@@ -115,7 +115,7 @@ export class DopplerProvider extends Provider<DopplerConfig> {
             );
           }
 
-          return [name, value];
+          return [name, { value }];
         }),
       );
     } catch (error) {

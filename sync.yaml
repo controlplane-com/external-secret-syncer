@@ -19,6 +19,9 @@ providers:
       clientId: example-client-id
       clientSecret: example-client-secret
       projectId: example-project-id
+  - name: my-gcp
+    gcpSecretManager:
+      projectId: my-gcp-project
 secrets:
   - name: hello1
     provider: my-vault
@@ -54,3 +57,10 @@ secrets:
     provider: my-infisical
     dictionaryFromProject:
       path: dev
+  # Discover every secret in the GCP project and create one cpln secret each.
+  # A GCP secret labeled `cpln-type=dictionary` is parsed as JSON and flattened
+  # into a dictionary secret; otherwise (or `cpln-type=opaque`) it becomes an
+  # opaque secret. GCP-only.
+  - name: gcp-discover-all
+    provider: my-gcp
+    discoverAllSecrets: true

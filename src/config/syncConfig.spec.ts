@@ -286,3 +286,78 @@ test('doppler dictionaryFromProject rejects boolean', () => {
   const result = ConfigSchema.safeParse(schema);
   expect(result.success).toBeFalsy();
 });
+
+test('secret with gcp discoverAllSecrets', () => {
+  const schema: z.input<typeof ConfigSchema> = {
+    providers: [
+      {
+        name: 'gcp',
+        gcpSecretManager: {
+          projectId: 'my-gcp-project',
+        },
+      },
+    ],
+    secrets: [
+      {
+        name: 'gcp-discover',
+        provider: 'gcp',
+        discoverAllSecrets: true,
+      },
+    ],
+  };
+
+  const result = ConfigSchema.safeParse(schema);
+  expect(result.success).toBeTruthy();
+  expect(result.data?.secrets[0].discoverAllSecrets).toBe(true);
+});
+
+test('discoverAllSecrets rejects non-gcp provider', () => {
+  const schema: z.input<typeof ConfigSchema> = {
+    providers: [
+      {
+        name: 'doppler',
+        doppler: {
+          accessToken: 'test-token',
+        },
+      },
+    ],
+    secrets: [
+      {
+        name: 'doppler-discover',
+        provider: 'doppler',
+        discoverAllSecrets: true,
+      },
+    ],
+  };
+
+  const result = ConfigSchema.safeParse(schema);
+  expect(result.error?.issues[0].message).toBe(
+    'discoverAllSecrets is only supported with a gcpSecretManager provider',
+  );
+});
+
+test('discoverAllSecrets cannot combine with another secret type', () => {
+  const schema: z.input<typeof ConfigSchema> = {
+    providers: [
+      {
+        name: 'gcp',
+        gcpSecretManager: {
+          projectId: 'my-gcp-project',
+        },
+      },
+    ],
+    secrets: [
+      {
+        name: 'gcp-discover',
+        provider: 'gcp',
+        discoverAllSecrets: true,
+        opaque: 'some/secret',
+      },
+    ],
+  };
+
+  const result = ConfigSchema.safeParse(schema);
+  expect(result.error?.issues[0].message).toBe(
+    'Secrets must only reference one secret type',
+  );
+});

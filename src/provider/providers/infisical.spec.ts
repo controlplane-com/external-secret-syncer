@@ -108,7 +108,7 @@ describe('InfisicalProvider', () => {
 
       const result = await provider.getSecrets('dev');
 
-      expect(result).toEqual({ A: '1', B: '2' });
+      expect(result).toEqual({ A: { value: '1' }, B: { value: '2' } });
       expect(listSecrets).toHaveBeenCalledWith({
         projectId: 'project-id',
         environment: 'dev',

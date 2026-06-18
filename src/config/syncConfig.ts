@@ -131,9 +131,16 @@ const SecretSchema = z
       .union([ProjectDictionarySecret, z.literal(true)])
       .optional(),
     dictionaryFromJson: z.string().nonempty().optional(),
+    discoverAllSecrets: z.literal(true).optional(),
   })
   .refine(
-    xor('opaque', 'dictionary', 'dictionaryFromProject', 'dictionaryFromJson'),
+    xor(
+      'opaque',
+      'dictionary',
+      'dictionaryFromProject',
+      'dictionaryFromJson',
+      'discoverAllSecrets',
+    ),
     {
       message: 'Secrets must only reference one secret type',
     },
@@ -194,6 +201,31 @@ export const ConfigSchema = z
     {
       message:
         'dictionaryFromProject must use `true` with a gcpSecretManager provider, or a path object with a Doppler or Infisical provider',
+    },
+  )
+  .refine(
+    (config) => {
+      for (const secret of config.secrets) {
+        if (!secret.discoverAllSecrets) {
+          continue;
+        }
+
+        const provider = config.providers.find(
+          (p) => p.name === secret.provider,
+        );
+        if (!provider) {
+          continue;
+        }
+
+        if (!provider.gcpSecretManager) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+    {
+      message: 'discoverAllSecrets is only supported with a gcpSecretManager provider',
     },
   );
 
