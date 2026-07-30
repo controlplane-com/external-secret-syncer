@@ -60,7 +60,9 @@ secrets:
   # Discover every secret in the GCP project and create one cpln secret each.
   # A GCP secret labeled `cpln-type=dictionary` is parsed as JSON and flattened
   # into a dictionary secret; otherwise (or `cpln-type=opaque`) it becomes an
-  # opaque secret. GCP-only.
+  # opaque secret. An opaque value that is canonical base64 is marked
+  # `encoding: base64` so cpln decodes it on consumption; label the GCP secret
+  # `cpln-encoding=disable` to opt out and store the value verbatim. GCP-only.
   - name: gcp-discover-all
     provider: my-gcp
     discoverAllSecrets: true

@@ -37,6 +37,48 @@ describe('ProviderService.discoverSecrets', () => {
     ]);
   });
 
+  it('marks a base64 opaque value with encoding and trims whitespace', async () => {
+    const service = serviceWith({
+      cert: { value: 'aGVsbG8=\n', type: 'opaque' },
+    });
+
+    const result = await service.discoverSecrets(discoverSecret);
+
+    expect(result).toEqual([
+      {
+        name: 'cert',
+        gcpName: 'cert',
+        type: 'opaque',
+        payload: 'aGVsbG8=',
+        encoding: 'base64',
+      },
+    ]);
+  });
+
+  it('skips base64 detection when the provider reports encoding disable', async () => {
+    const service = serviceWith({
+      cert: { value: 'aGVsbG8=\n', type: 'opaque', encoding: 'disable' },
+    });
+
+    const result = await service.discoverSecrets(discoverSecret);
+
+    expect(result).toEqual([
+      { name: 'cert', gcpName: 'cert', type: 'opaque', payload: 'aGVsbG8=\n' },
+    ]);
+  });
+
+  it('does not mark non-base64 opaque values with an encoding', async () => {
+    const service = serviceWith({
+      token: { value: 'not base64!', type: 'opaque' },
+    });
+
+    const result = await service.discoverSecrets(discoverSecret);
+
+    expect(result).toEqual([
+      { name: 'token', gcpName: 'token', type: 'opaque', payload: 'not base64!' },
+    ]);
+  });
+
   it('defaults to opaque when the provider omits a type', async () => {
     const service = serviceWith({ token: { value: 'abc' } });
 
@@ -112,6 +154,7 @@ describe('ProviderService.checkSecret (discoverAllSecrets)', () => {
     const service = serviceWith({
       token: { value: 'abc', type: 'opaque' },
       config: { value: '{"a":1}', type: 'dictionary' },
+      cert: { value: 'aGVsbG8=', type: 'opaque' },
     });
 
     const result = await service.checkSecret(discoverSecret);
@@ -121,6 +164,7 @@ describe('ProviderService.checkSecret (discoverAllSecrets)', () => {
       dictionary: {
         token: 'OK (opaque)',
         config: 'OK (dictionary)',
+        cert: 'OK (opaque, base64)',
       },
     });
   });

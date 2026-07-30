@@ -3,10 +3,15 @@
  * GCP, derived from the `cpln-type` label), tells the `discoverAllSecrets` flow
  * whether to materialize the value as an opaque or a (flattened JSON) dictionary
  * secret. Providers without a type concept simply omit it.
+ *
+ * `encoding: 'disable'` (from the `cpln-encoding` label) opts the secret out of
+ * base64 detection: its value is stored verbatim, never marked
+ * `encoding: base64`.
  */
 export interface ProviderSecretValue {
   value: string;
   type?: 'opaque' | 'dictionary';
+  encoding?: 'disable';
 }
 
 export abstract class Provider<C> {

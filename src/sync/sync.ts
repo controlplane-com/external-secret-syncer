@@ -265,7 +265,9 @@ export class Sync implements OnModuleInit {
     }
 
     const data: SecretData =
-      d.type === 'opaque' ? { payload: d.payload } : d.data;
+      d.type === 'opaque'
+        ? { payload: d.payload, ...(d.encoding && { encoding: d.encoding }) }
+        : d.data;
 
     // only write when the data, the error tag, or the provenance tag changed
     if (

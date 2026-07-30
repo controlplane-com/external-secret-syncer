@@ -72,6 +72,30 @@ describe('GcpSecretManagerProvider', () => {
       expect(result.B.type).toBe('opaque');
     });
 
+    it('passes cpln-encoding=disable through as encoding', async () => {
+      listSecrets.mockResolvedValue([
+        [secretResource('RAW', { 'cpln-encoding': 'disable' })],
+      ]);
+      accessSecretVersion.mockResolvedValue(version('aGVsbG8='));
+
+      const result = await provider.getSecrets();
+
+      expect(result).toEqual({
+        RAW: { value: 'aGVsbG8=', type: 'opaque', encoding: 'disable' },
+      });
+    });
+
+    it('ignores other cpln-encoding label values', async () => {
+      listSecrets.mockResolvedValue([
+        [secretResource('A', { 'cpln-encoding': 'something-else' })],
+      ]);
+      accessSecretVersion.mockResolvedValue(version('v'));
+
+      const result = await provider.getSecrets();
+
+      expect(result).toEqual({ A: { value: 'v', type: 'opaque' } });
+    });
+
     it('skips secrets with no accessible latest version', async () => {
       listSecrets.mockResolvedValue([
         [secretResource('OK'), secretResource('GONE')],

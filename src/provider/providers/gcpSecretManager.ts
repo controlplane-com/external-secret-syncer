@@ -4,6 +4,7 @@ import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
 import { jsonParse } from '../util/parse';
 
 const CPLN_TYPE_LABEL = 'cpln-type';
+const CPLN_ENCODING_LABEL = 'cpln-encoding';
 
 export class GcpSecretManagerProvider extends Provider<GcpSecretManagerConfig> {
   client: SecretManagerServiceClient;
@@ -62,7 +63,16 @@ export class GcpSecretManagerProvider extends Provider<GcpSecretManagerConfig> {
             ? 'dictionary'
             : 'opaque';
 
-        return [shortName, { value, type }] as [string, ProviderSecretValue];
+        // `cpln-encoding=disable` opts the secret out of base64 detection.
+        const encoding =
+          secret.labels?.[CPLN_ENCODING_LABEL] === 'disable'
+            ? ('disable' as const)
+            : undefined;
+
+        return [shortName, { value, type, ...(encoding && { encoding }) }] as [
+          string,
+          ProviderSecretValue,
+        ];
       }),
     );
 

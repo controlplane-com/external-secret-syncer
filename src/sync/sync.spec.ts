@@ -79,6 +79,31 @@ describe('Sync.sync (discoverAllSecrets)', () => {
     });
   });
 
+  it('writes the encoding into the opaque data when the value is base64', async () => {
+    const { sync, ds, provider } = buildSync();
+    provider.discoverSecrets.mockResolvedValue([
+      {
+        name: 'cert',
+        gcpName: 'cert',
+        type: 'opaque',
+        payload: 'aGVsbG8=',
+        encoding: 'base64',
+      },
+    ]);
+    ds.get.mockResolvedValue(null);
+    ds.put.mockResolvedValue({});
+
+    await sync.sync(discoverSecret);
+
+    expect(ds.put).toHaveBeenCalledWith(
+      secretPath('cert'),
+      expect.objectContaining({
+        type: 'opaque',
+        data: { payload: 'aGVsbG8=', encoding: 'base64' },
+      }),
+    );
+  });
+
   it('does not re-write an unchanged secret', async () => {
     const { sync, ds, provider } = buildSync();
     provider.discoverSecrets.mockResolvedValue([

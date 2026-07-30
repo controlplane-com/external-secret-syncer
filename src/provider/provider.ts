@@ -15,6 +15,7 @@ import { DopplerProvider } from './providers/doppler';
 import { GcpSecretManagerProvider } from './providers/gcpSecretManager';
 import { InfisicalProvider } from './providers/infisical';
 import { flattenJson, tryParseJsonObject } from './util/flatten';
+import { isBase64 } from './util/base64';
 import { Dict } from 'src/types/secret';
 import { sanitizeCplnName } from 'src/util';
 
@@ -30,10 +31,11 @@ export type ProviderSecret = OpaqueSecretResponse | DictionarySecretResponse;
 /**
  * A discovered secret resolved into its final CPLN shape. `name` is the
  * sanitized CPLN secret name; `gcpName` is the original provider secret id
- * (kept for logging/traceability).
+ * (kept for logging/traceability). `encoding` is set when the provider value
+ * was detected as base64, so the CPLN opaque secret is marked accordingly.
  */
 export type DiscoveredCplnSecret = { name: string; gcpName: string } & (
-  | { type: 'opaque'; payload: string }
+  | { type: 'opaque'; payload: string; encoding?: 'base64' }
   | { type: 'dictionary'; data: Dict }
 );
 
@@ -258,7 +260,9 @@ export class ProviderService implements OnModuleInit {
     const discovered = await provider.getSecrets();
 
     const byName = new Map<string, DiscoveredCplnSecret>();
-    for (const [gcpName, { value, type }] of Object.entries(discovered)) {
+    for (const [gcpName, { value, type, encoding }] of Object.entries(
+      discovered,
+    )) {
       const name = sanitizeCplnName(gcpName);
 
       const collision = byName.get(name);
@@ -278,7 +282,18 @@ export class ProviderService implements OnModuleInit {
         const data = parsed === null ? { __raw: value } : flattenJson(parsed);
         byName.set(name, { name, gcpName, type: 'dictionary', data });
       } else {
-        byName.set(name, { name, gcpName, type: 'opaque', payload: value });
+        const trimmed = value.trim();
+        if (encoding !== 'disable' && isBase64(trimmed)) {
+          byName.set(name, {
+            name,
+            gcpName,
+            type: 'opaque',
+            payload: trimmed,
+            encoding: 'base64',
+          });
+        } else {
+          byName.set(name, { name, gcpName, type: 'opaque', payload: value });
+        }
       }
     }
 
@@ -292,7 +307,12 @@ export class ProviderService implements OnModuleInit {
         return {
           name: secret.name,
           dictionary: Object.fromEntries(
-            discovered.map((d) => [d.name, `OK (${d.type})`]),
+            discovered.map((d) => [
+              d.name,
+              d.type === 'opaque' && d.encoding
+                ? `OK (opaque, ${d.encoding})`
+                : `OK (${d.type})`,
+            ]),
           ),
         };
       } catch (e) {
