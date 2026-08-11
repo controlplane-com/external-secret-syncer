@@ -14,6 +14,14 @@ providers:
     onePasswordConnect:
       serverURL: http://localhost:8080
       token: mock-token
+  - name: my-infisical
+    infisical:
+      clientId: example-client-id
+      clientSecret: example-client-secret
+      projectId: example-project-id
+  - name: my-gcp
+    gcpSecretManager:
+      projectId: my-gcp-project
 secrets:
   - name: hello1
     provider: my-vault
@@ -42,3 +50,19 @@ secrets:
   - name: test-secret
     provider: my-1p-connect
     opaque: ESS Test/My App/password
+  - name: infisical-secret
+    provider: my-infisical
+    opaque: dev/DATABASE_URL
+  - name: infisical-app-config
+    provider: my-infisical
+    dictionaryFromProject:
+      path: dev
+  # Discover every secret in the GCP project and create one cpln secret each.
+  # A GCP secret labeled `cpln-type=dictionary` is parsed as JSON and flattened
+  # into a dictionary secret; otherwise (or `cpln-type=opaque`) it becomes an
+  # opaque secret. An opaque value that is canonical base64 is marked
+  # `encoding: base64` so cpln decodes it on consumption; label the GCP secret
+  # `cpln-encoding=disable` to opt out and store the value verbatim. GCP-only.
+  - name: gcp-discover-all
+    provider: my-gcp
+    discoverAllSecrets: true

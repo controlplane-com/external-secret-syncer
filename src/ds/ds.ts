@@ -67,7 +67,7 @@ export class DataService {
         }),
       ),
     );
-    await this.cacheManager.del(path);
+    await this.invalidate(path);
 
     return response.data;
   }
@@ -97,6 +97,14 @@ export class DataService {
         }),
       ),
     );
+    await this.invalidate(path);
+  }
+
+  // Writes target `/secret/<name>`, but secrets are read back via the
+  // `/secret/<name>/-reveal` endpoint (cached under that distinct key), so a
+  // write must invalidate both keys to avoid serving a stale revealed value.
+  private async invalidate(path: string): Promise<void> {
     await this.cacheManager.del(path);
+    await this.cacheManager.del(`${path}/-reveal`);
   }
 }

@@ -13,6 +13,11 @@ import { OnePasswordProvider } from './providers/onePassword';
 import { OnePasswordConnectProvider } from './providers/onePasswordConnect';
 import { DopplerProvider } from './providers/doppler';
 import { GcpSecretManagerProvider } from './providers/gcpSecretManager';
+import { InfisicalProvider } from './providers/infisical';
+import { flattenJson, tryParseJsonObject } from './util/flatten';
+import { isBase64 } from './util/base64';
+import { Dict } from 'src/types/secret';
+import { sanitizeCplnName } from 'src/util';
 
 export interface SecretResponse {
   secret?: string;
@@ -22,6 +27,17 @@ export interface SecretResponse {
 export type OpaqueSecretResponse = SecretResponse;
 export type DictionarySecretResponse = Record<string, SecretResponse>;
 export type ProviderSecret = OpaqueSecretResponse | DictionarySecretResponse;
+
+/**
+ * A discovered secret resolved into its final CPLN shape. `name` is the
+ * sanitized CPLN secret name; `gcpName` is the original provider secret id
+ * (kept for logging/traceability). `encoding` is set when the provider value
+ * was detected as base64, so the CPLN opaque secret is marked accordingly.
+ */
+export type DiscoveredCplnSecret = { name: string; gcpName: string } & (
+  | { type: 'opaque'; payload: string; encoding?: 'base64' }
+  | { type: 'dictionary'; data: Dict }
+);
 
 export type CheckSecretResponse = {
   name: string;
@@ -33,7 +49,7 @@ export class ProviderService implements OnModuleInit {
 
   constructor(
     @Inject(SYNC_CONIFG_KEY) private readonly syncConfig: SyncConfigType,
-  ) {}
+  ) { }
 
   onModuleInit() {
     for (const provider of this.syncConfig.providers) {
@@ -77,6 +93,11 @@ export class ProviderService implements OnModuleInit {
             provider.name,
             provider.gcpSecretManager,
           ),
+        );
+      }
+      if (provider.infisical) {
+        this.providers.push(
+          new InfisicalProvider(provider.name, provider.infisical),
         );
       }
     }
@@ -188,9 +209,38 @@ export class ProviderService implements OnModuleInit {
     }
 
     if (secret.dictionaryFromProject) {
-      const data = await provider.getSecrets(secret.dictionaryFromProject.path);
+      const path =
+        secret.dictionaryFromProject === true
+          ? undefined
+          : secret.dictionaryFromProject.path;
+      const data = await provider.getSecrets(path);
       return Object.fromEntries(
-        Object.entries(data).map(([key, value]) => [key, { secret: value }]),
+        Object.entries(data).map(([key, value]) => [
+          key,
+          { secret: value.value },
+        ]),
+      );
+    }
+
+    if (secret.dictionaryFromJson) {
+      const path = secret.dictionaryFromJson;
+      const rawValue = await provider.getSecret(path);
+      const parsed = tryParseJsonObject(rawValue);
+
+      if (parsed === null) {
+        // Value is not a parseable JSON object (raw string, array, scalar, or
+        // malformed JSON). Fall back to a single-key dictionary containing the
+        // raw value, so the secret stays usable as a dictionary type — no
+        // delete/recreate cycle on each parse outcome.
+        logger.warn(
+          `Secret ${path} from ${provider.name} is not a valid JSON object; storing raw value under '__raw' key`,
+        );
+        return { __raw: { secret: rawValue } };
+      }
+
+      const flat = flattenJson(parsed);
+      return Object.fromEntries(
+        Object.entries(flat).map(([k, v]) => [k, { secret: v }]),
       );
     }
 
@@ -198,7 +248,81 @@ export class ProviderService implements OnModuleInit {
     throw new Error(`Unexpected error for: ${secret.name}`);
   }
 
+  /**
+   * Discover every secret in the provider's project (via the provider's bulk
+   * `getSecrets`) and resolve each into its final CPLN shape. The per-secret
+   * `type` reported by the provider (currently only GCP, from the `cpln-type`
+   * label) decides whether it becomes an opaque or a (flattened JSON) dictionary
+   * secret; an unset type defaults to opaque.
+   */
+  async discoverSecrets(secret: Secret): Promise<DiscoveredCplnSecret[]> {
+    const provider = this.getProviderForSecret<any>(secret);
+    const discovered = await provider.getSecrets();
+
+    const byName = new Map<string, DiscoveredCplnSecret>();
+    for (const [gcpName, { value, type, encoding }] of Object.entries(
+      discovered,
+    )) {
+      const name = sanitizeCplnName(gcpName);
+
+      const collision = byName.get(name);
+      if (collision) {
+        logger.warn(
+          `Discovered secrets "${collision.gcpName}" and "${gcpName}" both map to CPLN name "${name}"; the latter overwrites the former`,
+        );
+      }
+
+      if (type === 'dictionary') {
+        const parsed = tryParseJsonObject(value);
+        if (parsed === null) {
+          logger.warn(
+            `Discovered secret ${gcpName} is labeled "dictionary" but is not a valid JSON object; storing raw value under '__raw' key`,
+          );
+        }
+        const data = parsed === null ? { __raw: value } : flattenJson(parsed);
+        byName.set(name, { name, gcpName, type: 'dictionary', data });
+      } else {
+        const trimmed = value.trim();
+        if (encoding !== 'disable' && isBase64(trimmed)) {
+          byName.set(name, {
+            name,
+            gcpName,
+            type: 'opaque',
+            payload: trimmed,
+            encoding: 'base64',
+          });
+        } else {
+          byName.set(name, { name, gcpName, type: 'opaque', payload: value });
+        }
+      }
+    }
+
+    return Array.from(byName.values());
+  }
+
   async checkSecret(secret: Secret): Promise<CheckSecretResponse> {
+    if (secret.discoverAllSecrets) {
+      try {
+        const discovered = await this.discoverSecrets(secret);
+        return {
+          name: secret.name,
+          dictionary: Object.fromEntries(
+            discovered.map((d) => [
+              d.name,
+              d.type === 'opaque' && d.encoding
+                ? `OK (opaque, ${d.encoding})`
+                : `OK (${d.type})`,
+            ]),
+          ),
+        };
+      } catch (e) {
+        return {
+          name: secret.name,
+          dictionary: { _discover: 'ERROR: ' + e.message },
+        };
+      }
+    }
+
     let resolved: ProviderSecret;
     try {
       resolved = await this.getSecret(secret);
@@ -217,6 +341,13 @@ export class ProviderService implements OnModuleInit {
               'ERROR: ' + e.message,
             ]),
           ),
+        };
+      } else if (secret.dictionaryFromJson) {
+        return {
+          name: secret.name,
+          dictionary: {
+            [secret.dictionaryFromJson]: 'ERROR: ' + e.message,
+          },
         };
       }
 
@@ -256,7 +387,7 @@ export class ProviderService implements OnModuleInit {
       };
     }
 
-    if (secret.dictionaryFromProject) {
+    if (secret.dictionaryFromProject || secret.dictionaryFromJson) {
       const res = Object.fromEntries(
         Object.keys(resolved as DictionarySecretResponse).map((key) => {
           const resolvedPair = (resolved as DictionarySecretResponse)[

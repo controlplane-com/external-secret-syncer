@@ -25,6 +25,7 @@
     "@aws-sdk/client-secrets-manager": "^3.1018.0",
     "@aws-sdk/client-ssm": "^3.1018.0",
     "@google-cloud/secret-manager": "^6.1.1",
+    "@infisical/sdk": "^5.0.2",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.1.17",

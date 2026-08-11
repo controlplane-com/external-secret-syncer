@@ -5,7 +5,7 @@ import { isEqual } from 'lodash';
 
 @Injectable()
 export class SyncReloadService {
-  app: INestApplication;
+  app!: INestApplication;
   reload: Promise<void>;
 
   constructor(

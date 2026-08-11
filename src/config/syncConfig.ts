@@ -45,6 +45,13 @@ const DopplerSchema = z.object({
   accessToken: z.string(),
 });
 
+const InfisicalSchema = z.object({
+  siteUrl: z.url().optional(),
+  clientId: z.string().default(process.env.INFISICAL_CLIENT_ID ?? ''),
+  clientSecret: z.string().default(process.env.INFISICAL_CLIENT_SECRET ?? ''),
+  projectId: z.string(),
+});
+
 const GcpSecretManagerSchema = z.object({
   projectId: z.coerce.string(),
   credentials: z
@@ -66,6 +73,7 @@ export const ProviderSchema = z
     onePasswordConnect: OnePasswordConnectSchema.optional(),
     doppler: DopplerSchema.optional(),
     gcpSecretManager: GcpSecretManagerSchema.optional(),
+    infisical: InfisicalSchema.optional(),
   })
   .refine(
     xor(
@@ -76,6 +84,7 @@ export const ProviderSchema = z
       'onePasswordConnect',
       'doppler',
       'gcpSecretManager',
+      'infisical',
     ),
     {
       message: 'Provider must have exactly one provider',
@@ -103,9 +112,9 @@ export const ProjectDictionarySecret = z.object({
   path: z
     .string()
     .trim()
-    .regex(/^\/?[^/\s]+\/[^/\s]+$/, {
+    .regex(/^\/?[^/\s]+(?:\/[^/\s]+)*$/, {
       message:
-        'Project dictionary path must be in the format "project/config"',
+        'dictionaryFromProject path must be one or more "/"-separated segments (e.g. "project/config" for Doppler, "environment" or "environment/folder" for Infisical)',
     }),
 });
 
@@ -118,11 +127,24 @@ const SecretSchema = z
     dictionary: z
       .record(z.string().nonempty(), z.union([ImplicitSecret, ExplicitSecret]))
       .optional(),
-    dictionaryFromProject: ProjectDictionarySecret.optional(),
+    dictionaryFromProject: z
+      .union([ProjectDictionarySecret, z.literal(true)])
+      .optional(),
+    dictionaryFromJson: z.string().nonempty().optional(),
+    discoverAllSecrets: z.literal(true).optional(),
   })
-  .refine(xor('opaque', 'dictionary', 'dictionaryFromProject'), {
-    message: 'Secrets must only reference one secret type',
-  });
+  .refine(
+    xor(
+      'opaque',
+      'dictionary',
+      'dictionaryFromProject',
+      'dictionaryFromJson',
+      'discoverAllSecrets',
+    ),
+    {
+      message: 'Secrets must only reference one secret type',
+    },
+  );
 
 export const ConfigSchema = z
   .object({
@@ -156,9 +178,21 @@ export const ConfigSchema = z
           continue;
         }
 
-        const provider = config.providers.find((p) => p.name === secret.provider);
-        if (!provider?.doppler) {
-          return false;
+        const provider = config.providers.find(
+          (p) => p.name === secret.provider,
+        );
+        if (!provider) {
+          continue;
+        }
+
+        if (secret.dictionaryFromProject === true) {
+          if (!provider.gcpSecretManager) {
+            return false;
+          }
+        } else {
+          if (!provider.doppler && !provider.infisical) {
+            return false;
+          }
         }
       }
 
@@ -166,7 +200,32 @@ export const ConfigSchema = z
     },
     {
       message:
-        'Secrets using dictionaryFromProject must use a Doppler provider',
+        'dictionaryFromProject must use `true` with a gcpSecretManager provider, or a path object with a Doppler or Infisical provider',
+    },
+  )
+  .refine(
+    (config) => {
+      for (const secret of config.secrets) {
+        if (!secret.discoverAllSecrets) {
+          continue;
+        }
+
+        const provider = config.providers.find(
+          (p) => p.name === secret.provider,
+        );
+        if (!provider) {
+          continue;
+        }
+
+        if (!provider.gcpSecretManager) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+    {
+      message: 'discoverAllSecrets is only supported with a gcpSecretManager provider',
     },
   );
 
@@ -193,6 +252,9 @@ export const removeSensitive = (config: SyncConfigType) => {
     if (provider.gcpSecretManager?.credentials) {
       provider.gcpSecretManager.credentials.privateKey = SENSITIVE;
     }
+    if (provider.infisical) {
+      provider.infisical.clientSecret = SENSITIVE;
+    }
   });
   return result;
 };
@@ -214,7 +276,11 @@ export const syncConfig = async () => {
 export const SYNC_CONIFG_KEY = 'syncConfig';
 
 export const isDictionarySecret = (secret: Secret) =>
-  Boolean(secret.dictionary || secret.dictionaryFromProject);
+  Boolean(
+    secret.dictionary ||
+    secret.dictionaryFromProject ||
+    secret.dictionaryFromJson,
+  );
 
 export type SyncConfigType = z.infer<typeof ConfigSchema>;
 export type Secret = z.infer<typeof SecretSchema>;
@@ -228,3 +294,4 @@ export type OnePasswordConfig = z.infer<typeof OnePasswordSchema>;
 export type OnePasswordConnectConfig = z.infer<typeof OnePasswordConnectSchema>;
 export type DopplerConfig = z.infer<typeof DopplerSchema>;
 export type GcpSecretManagerConfig = z.infer<typeof GcpSecretManagerSchema>;
+export type InfisicalConfig = z.infer<typeof InfisicalSchema>;
