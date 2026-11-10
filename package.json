@@ -24,7 +24,7 @@
     "@1password/sdk": "^0.4.0",
     "@aws-sdk/client-secrets-manager": "^3.1018.0",
     "@aws-sdk/client-ssm": "^3.1018.0",
-    "@google-cloud/secret-manager": "^6.1.1",
+    "@google-cloud/secret-manager": "^8.0.0",
     "@infisical/sdk": "^5.0.2",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.1.0",
@@ -43,7 +43,7 @@
     "lodash": "^4.18.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "zod": "^4.3.6"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",

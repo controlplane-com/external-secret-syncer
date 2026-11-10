@@ -3,7 +3,7 @@ import { join } from 'path';
 import { z, ZodError } from 'zod';
 import { atLeastOne, DurationSchema, unique, xor } from './common';
 import { readFile } from 'fs/promises';
-import { cloneDeep } from 'lodash';
+import { cloneDeep, get, set } from 'lodash';
 import { logger } from './logging';
 
 const SYNC_CONFIG_PATH = process.env.SYNC_CONFIG_PATH ?? 'sync.yaml';
@@ -225,37 +225,75 @@ export const ConfigSchema = z
       return true;
     },
     {
-      message: 'discoverAllSecrets is only supported with a gcpSecretManager provider',
+      message:
+        'discoverAllSecrets is only supported with a gcpSecretManager provider',
     },
   );
 
-export const removeSensitive = (config: SyncConfigType) => {
-  const result = cloneDeep(config);
-  result.providers.forEach((provider) => {
-    if (provider.vault) {
-      provider.vault.token = SENSITIVE;
+type ProviderConfig = z.infer<typeof ProviderSchema>;
+export type ProviderKind = Exclude<
+  keyof ProviderConfig,
+  'name' | 'syncInterval'
+>;
+
+/**
+ * Credential fields (lodash paths, relative to the provider block) that must
+ * never be exposed by the API. Typed as an exhaustive record so that adding a
+ * provider to ProviderSchema fails to compile until its secrets are listed here.
+ */
+export const SENSITIVE_PROVIDER_FIELDS: Record<
+  ProviderKind,
+  readonly string[]
+> = {
+  vault: ['token'],
+  awsSecretsManager: ['accessKeyId', 'secretAccessKey'],
+  awsParameterStore: ['accessKeyId', 'secretAccessKey'],
+  onePassword: ['serviceAccountToken'],
+  onePasswordConnect: ['token'],
+  doppler: ['accessToken'],
+  gcpSecretManager: ['credentials.privateKey'],
+  infisical: ['clientId', 'clientSecret'],
+};
+
+const mask = (obj: object, path: string) => {
+  // only mask values that are set, so an unconfigured credential stays visible
+  if (get(obj, path) !== undefined && get(obj, path) !== '') {
+    set(obj, path, SENSITIVE);
+  }
+};
+
+const maskSecretDefault = (value: unknown) => {
+  if (value && typeof value === 'object') {
+    mask(value, 'default');
+  }
+};
+
+export const removeSensitive = (config: SyncConfigType): SyncConfigType => {
+  const result = cloneDeep(config) as {
+    providers: ProviderConfig[];
+    secrets: Secret[];
+  };
+
+  for (const provider of result.providers) {
+    for (const [kind, paths] of Object.entries(SENSITIVE_PROVIDER_FIELDS)) {
+      const providerConfig = provider[kind as ProviderKind];
+      if (!providerConfig) {
+        continue;
+      }
+      for (const path of paths) {
+        mask(providerConfig, path);
+      }
     }
-    if (
-      provider.awsSecretsManager &&
-      provider.awsSecretsManager.secretAccessKey
-    ) {
-      provider.awsSecretsManager.secretAccessKey = SENSITIVE;
+  }
+
+  // explicit secrets may carry a literal fallback value in `default`
+  for (const secret of result.secrets) {
+    maskSecretDefault(secret.opaque);
+    for (const entry of Object.values(secret.dictionary ?? {})) {
+      maskSecretDefault(entry);
     }
-    if (provider.awsSecretsManager && provider.awsSecretsManager.accessKeyId)
-      provider.awsSecretsManager.accessKeyId = SENSITIVE;
-    if (provider.onePasswordConnect) {
-      provider.onePasswordConnect.token = SENSITIVE;
-    }
-    if (provider.doppler) {
-      provider.doppler.accessToken = SENSITIVE;
-    }
-    if (provider.gcpSecretManager?.credentials) {
-      provider.gcpSecretManager.credentials.privateKey = SENSITIVE;
-    }
-    if (provider.infisical) {
-      provider.infisical.clientSecret = SENSITIVE;
-    }
-  });
+  }
+
   return result;
 };
 

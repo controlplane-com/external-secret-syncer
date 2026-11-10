@@ -4,6 +4,8 @@ import {
   ExplicitSecret,
   ProjectDictionarySecret,
   ProviderSchema,
+  removeSensitive,
+  SENSITIVE_PROVIDER_FIELDS,
 } from './syncConfig';
 
 test('secret with invalid provider', () => {
@@ -360,4 +362,119 @@ test('discoverAllSecrets cannot combine with another secret type', () => {
   expect(result.error?.issues[0].message).toBe(
     'Secrets must only reference one secret type',
   );
+});
+
+describe('removeSensitive', () => {
+  const LEAK = 'LEAKED-CREDENTIAL';
+
+  const config = ConfigSchema.parse({
+    providers: [
+      {
+        name: 'vault',
+        vault: { address: 'http://localhost:8200', token: LEAK + '-vault' },
+      },
+      {
+        name: 'asm',
+        awsSecretsManager: {
+          region: 'us-east-1',
+          accessKeyId: LEAK + '-asm-id',
+          secretAccessKey: LEAK + '-asm-key',
+        },
+      },
+      {
+        name: 'ssm',
+        awsParameterStore: {
+          region: 'us-east-1',
+          accessKeyId: LEAK + '-ssm-id',
+          secretAccessKey: LEAK + '-ssm-key',
+        },
+      },
+      {
+        name: 'op',
+        onePassword: { serviceAccountToken: LEAK + '-op' },
+      },
+      {
+        name: 'opc',
+        onePasswordConnect: {
+          serverURL: 'http://localhost:8080',
+          token: LEAK + '-opc',
+        },
+      },
+      { name: 'doppler', doppler: { accessToken: LEAK + '-doppler' } },
+      {
+        name: 'gcp',
+        gcpSecretManager: {
+          projectId: 'p',
+          credentials: {
+            clientEmail: 'sa@p.iam.gserviceaccount.com',
+            privateKey: LEAK + '-gcp',
+          },
+        },
+      },
+      {
+        name: 'infisical',
+        infisical: {
+          projectId: 'p',
+          clientId: LEAK + '-inf-id',
+          clientSecret: LEAK + '-inf-secret',
+        },
+      },
+    ],
+    secrets: [
+      {
+        name: 'opaque',
+        provider: 'vault',
+        opaque: { path: 'a', default: LEAK + '-opaque-default' },
+      },
+      {
+        name: 'dict',
+        provider: 'vault',
+        dictionary: {
+          implicit: 'some/path',
+          explicit: { path: 'b', default: LEAK + '-dict-default' },
+        },
+      },
+    ],
+  });
+
+  test('every provider in the schema has its sensitive fields declared', () => {
+    const providerKinds = Object.keys(ProviderSchema.shape).filter(
+      (k) => k !== 'name' && k !== 'syncInterval',
+    );
+    expect(Object.keys(SENSITIVE_PROVIDER_FIELDS).sort()).toEqual(
+      providerKinds.sort(),
+    );
+    // the fixture above must cover every provider so the leak check is complete
+    const configured = config.providers.flatMap((p) =>
+      providerKinds.filter((k) => p[k] !== undefined),
+    );
+    expect(configured.sort()).toEqual(providerKinds.sort());
+  });
+
+  test('masks credentials of all providers and secret defaults', () => {
+    const result = removeSensitive(config);
+    expect(JSON.stringify(result)).not.toContain(LEAK);
+  });
+
+  test('keeps non-sensitive fields and does not mutate the input', () => {
+    const result = removeSensitive(config);
+    expect(result.providers[0].vault?.address).toBe('http://localhost:8200');
+    expect(result.secrets[1].dictionary?.implicit).toBe('some/path');
+    expect(result.providers[0].vault?.token).toBe('***********');
+    expect(config.providers[0].vault?.token).toBe(LEAK + '-vault');
+  });
+
+  test('leaves unset optional credentials untouched', () => {
+    const result = removeSensitive(
+      ConfigSchema.parse({
+        providers: [
+          { name: 'asm', awsSecretsManager: { region: 'us-east-1' } },
+          { name: 'gcp', gcpSecretManager: { projectId: 'p' } },
+        ],
+        secrets: [],
+      }),
+    );
+    expect(result.providers[0].awsSecretsManager?.accessKeyId).toBeUndefined();
+    expect(result.providers[1].gcpSecretManager?.credentials).toBeUndefined();
+  });
 });
